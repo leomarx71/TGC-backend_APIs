@@ -1,0 +1,18 @@
+[
+    {
+        "id": 1,
+        "pilot_a_id": 1,
+        "pilot_b_id": 2,
+        "group_name": "Grupo 1",
+        "tournament": "Torneio 1",
+        "phase": "Fase de Grupos",
+        "local_track": [
+            "USA",
+            "SAM"
+        ],
+        "deadline": "2026-01-19 23:59:59",
+        "status": "AGENDADO",
+        "winner_id": null,
+        "created_at": "2026-01-14 00:39:20"
+    }
+]

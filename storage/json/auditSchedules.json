@@ -1,0 +1,42 @@
+[
+    {
+        "id": 1,
+        "timestamp": "2026-01-14 00:39:50",
+        "match_id": 1,
+        "pilot_id": 1,
+        "action": "PROPOSTO",
+        "details": "Horário: 2026-01-14 19:00:00"
+    },
+    {
+        "id": 2,
+        "timestamp": "2026-01-14 00:40:07",
+        "match_id": 1,
+        "pilot_id": 2,
+        "action": "REC_NOVAPROPOSTA",
+        "details": "Horário: 2026-01-15 21:30:00"
+    },
+    {
+        "id": 3,
+        "timestamp": "2026-01-14 00:40:21",
+        "match_id": 1,
+        "pilot_id": 1,
+        "action": "RECUSADO",
+        "details": "Recusou proposta."
+    },
+    {
+        "id": 4,
+        "timestamp": "2026-01-14 00:40:35",
+        "match_id": 1,
+        "pilot_id": 2,
+        "action": "PROPOSTO",
+        "details": "Horário: 2026-01-15 18:30:00"
+    },
+    {
+        "id": 5,
+        "timestamp": "2026-01-14 00:40:42",
+        "match_id": 1,
+        "pilot_id": 1,
+        "action": "CONFIRMADO",
+        "details": "Data Confirmada"
+    }
+]

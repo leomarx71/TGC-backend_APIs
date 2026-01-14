@@ -1,0 +1,12 @@
+[
+    {
+        "id": 1,
+        "match_id": 1,
+        "proposed_by_pilot_id": 2,
+        "data_hora": "2026-01-15 18:30:00",
+        "status": "CONFIRMADO",
+        "created_at": "2026-01-14 00:39:50",
+        "updated_at": "2026-01-14 00:40:42",
+        "action_by_pilot_id": 1
+    }
+]
