@@ -38,9 +38,36 @@ function writeLog($msg, $data = null) {
     file_put_contents(FILE_LOG, $content . PHP_EOL, FILE_APPEND);
 }
 
-// Token Secreto (Segurança)
-define('TELEGRAM_WEBHOOK_SECRET', 'TGC_2026_webhook_SECRET_KneseQAScI996C0');
-define('BOT_TOKEN', '8370858803:AAGOVm8ohAb_KaPHPSLCmF8f3aru_n3HDwE');
+// ============================================================
+// CARREGAR VARIÁVEIS DE AMBIENTE
+// ============================================================
+
+$envFile = __DIR__ . '/../.env';
+if (file_exists($envFile)) {
+    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (strpos($line, '#') === 0) continue;
+        if (strpos($line, '=') === false) continue;
+        
+        list($key, $value) = explode('=', $line, 2);
+        $key = trim($key);
+        $value = trim($value, ' "\'');
+        
+        // Tenta usar putenv, mas garante que $_ENV esteja populado
+        // pois alguns servidores bloqueiam getenv/putenv
+        @putenv("$key=$value"); 
+        $_ENV[$key] = $value;
+    }
+}
+
+// Token Secreto (Segurança) - Carregado via $_ENV
+define('TELEGRAM_WEBHOOK_SECRET', isset($_ENV['TELEGRAM_WEBHOOK_SECRET']) ? $_ENV['TELEGRAM_WEBHOOK_SECRET'] : '');
+
+// Token do Bot - Carregado via $_ENV
+define('TELEGRAM_BOT_TOKEN', isset($_ENV['TELEGRAM_BOT_TOKEN']) ? $_ENV['TELEGRAM_BOT_TOKEN'] : '');
+
+// ID do Grupo Principal para Notificações - Carregado via $_ENV
+define('TELEGRAM_GROUP_ID', isset($_ENV['TELEGRAM_GROUP_ID']) ? $_ENV['TELEGRAM_GROUP_ID'] : '');
 
 // Verificação do Header de Segurança
 $headers = getallheaders();
@@ -52,7 +79,8 @@ foreach ($headers as $key => $value) {
     }
 }
 
-if ($secret_header !== TELEGRAM_WEBHOOK_SECRET) {
+// Verifica se o secret foi definido no env antes de comparar
+if (!TELEGRAM_WEBHOOK_SECRET || $secret_header !== TELEGRAM_WEBHOOK_SECRET) {
     writeLog("ERRO SEGURANCA: Token secreto inválido ou ausente.", ['header_recebido' => $secret_header]);
     http_response_code(403);
     exit('Forbidden: Invalid Secret Token');
@@ -172,7 +200,7 @@ function apiRequest($method, $parameters) {
     
     writeLog("API SEND [PRE]: Tentando $method", $parameters);
     
-    $ch = curl_init("https://api.telegram.org/bot" . BOT_TOKEN . "/" . $method);
+    $ch = curl_init("https://api.telegram.org/bot" . TELEGRAM_BOT_TOKEN . "/" . $method);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
     curl_setopt($ch, CURLOPT_TIMEOUT, 60);
@@ -218,6 +246,14 @@ function answerCallbackQuery($callbackQueryId, $text = null) {
     $data = ['callback_query_id' => $callbackQueryId];
     if ($text) $data['text'] = $text;
     apiRequest("answerCallbackQuery", $data);
+}
+
+// Função Auxiliar para Notificar o Grupo (Se ID estiver definido)
+function sendGroupMessage($text) {
+    if (defined('TELEGRAM_GROUP_ID') && TELEGRAM_GROUP_ID) {
+        // Envia mensagem para o grupo configurado
+        sendMessage(TELEGRAM_GROUP_ID, $text);
+    }
 }
 
 // =================================================================================
@@ -367,6 +403,10 @@ if (isset($update['callback_query'])) {
             if ($context == 'resched') $msgAdv = "⚠️ <b>Solicitação de Reagendamento: #{$matchId}</b>\n\nNova data proposta: <b>{$displayData}</b>\n\nUse <code>/agendar {$matchId}</code> para confirmar.";
             sendMessage($advPilot['telegram_id'], $msgAdv);
         }
+
+        // Notificação no Grupo Oficial (Se configurado)
+        $groupMsg = "📅 <b>Nova Proposta de Agendamento</b>\n\n🆔 Partida: <b>#{$matchId}</b>\n🏁 {$meuNome} 🆚 {$advNome}\n🕒 Sugestão: <b>{$displayData}</b>\n\n⚠️ <i>Aguardando confirmação.</i>";
+        sendGroupMessage($groupMsg);
     }
 
     // [CANCELAR OPERAÇÃO]
@@ -406,9 +446,15 @@ if (isset($update['callback_query'])) {
             if ($proposerId != $pilot['id']) {
                 $proposer = getPilotById($proposerId);
                 $meuNome = getPilotMention($pilot);
+                $propNome = getPilotMention($proposer); // Para uso no log do grupo
+
                 if ($proposer && $proposer['telegram_id']) {
                     sendMessage($proposer['telegram_id'], "🚫 <b>Proposta Recusada: Partida #{$matchId}</b>\n\n👤 Recusado por: <b>{$meuNome}</b>\n\nUse <code>/agendar {$matchId}</code> para enviar uma nova sugestão.");
                 }
+
+                // Notificação no Grupo Oficial
+                $groupMsg = "🚫 <b>Agendamento Recusado</b>\n\n🆔 Partida: <b>#{$matchId}</b>\n🛑 Recusado por: {$meuNome}\n🕒 Proposta original de: {$propNome}";
+                sendGroupMessage($groupMsg);
             }
         }
     }
@@ -447,6 +493,10 @@ if (isset($update['callback_query'])) {
         if ($proposer) {
             sendMessage($proposer['telegram_id'], "✅ <b>Confirmado! Partida #{$matchId}</b>\n\n📅 Data: {$dtDisplay}\n👤 Aceito por: <b>{$meuNome}</b>");
         }
+
+        // Notificação no Grupo Oficial
+        $groupMsg = "✅ <b>PARTIDA AGENDADA!</b>\n\n🆔 Partida: <b>#{$matchId}</b>\n🏁 {$propNome} 🆚 {$meuNome}\n📅 Data: <b>{$dtDisplay}</b>\n\n🏆 <i>Boa sorte aos pilotos!</i>";
+        sendGroupMessage($groupMsg);
     }
     exit;
 }
@@ -469,10 +519,10 @@ writeLog("MENSAGEM: Usuário $userId ($firstName) enviou: $text");
 
 // /links (Novo comando)
 if ($text === '/links') {
-    $msg = "🔗 <b>Links Úteis do Comissário</b>\n\n";
-    $msg .= "🅰️ <a href='https://topgearchampionships.com/comissario/envio_la_liga.php'>[ENVIO CARRO FASE DE GRUPOS]</a>\n\n";
-    $msg .= "🅱️ <a href='https://topgearchampionships.com/comissario/envio.php'>[ENVIO CARRO FASE FINAL]</a>\n\n";
-    $msg .= "©️ <a href='https://topgearchampionships.com/comissario/log-publico.php'>[LOGS PÚBLICOS COMISSARIO]</a>";
+    $msg = "🔗 <b>Links Comissário:</b>\n\n";
+    $msg .= "A - Link para: <a href='https://topgearchampionships.com/comissario/envio_la_liga.php'>[ENVIO CARRO FASE DE GRUPOS]</a>\n";
+    $msg .= "B - Link para: <a href='https://topgearchampionships.com/comissario/envio.php'>[ENVIO CARRO FASE FINAL]</a>\n";
+    $msg .= "C - Link para: <a href='https://topgearchampionships.com/comissario/log-publico.php'>[LOGS PÚBLICOS COMISSARIO]</a>";
     sendMessage($chatId, $msg);
     exit;
 }
