@@ -11,8 +11,8 @@
 
 # Arquivos de dados e logs (sensível)
 storage/backups
-storage/json
 storage/logs
+storage/json
 
 
 # Logs (nunca fazer commit)
@@ -31,3 +31,4 @@ Thumbs.db
 *.bak
 *.tmp
 *~
+
