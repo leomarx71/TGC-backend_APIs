@@ -1,0 +1,33 @@
+# .gitignore
+# ============================================================
+# TOP GEAR BOT - ARQUIVO DE .GITIGNORE
+# ============================================================
+
+# Variáveis de ambiente (IMPORTANTE!)
+.env
+.env.local
+.env.*.local
+.env.backup
+
+# Arquivos de dados e logs (sensível)
+storage/backups
+storage/json
+storage/logs
+
+
+# Logs (nunca fazer commit)
+*.log
+
+# IDE e Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Backup e temp
+*.bak
+*.tmp
+*~
