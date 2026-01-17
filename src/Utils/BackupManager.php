@@ -9,13 +9,65 @@
 class BackupManager {
     
     /**
+     * Cria apenas um backup (Snapshot) sem alterar/limpar os dados atuais.
+     * Útil para o botão "Criar Backup" do admin.
+     * * @param string $adminId ID do admin solicitante
+     * @return array Resultado da operação
+     */
+    public static function createBackupSnapshot($adminId = 'system') {
+        if (!defined('BACKUP_DIR') || !defined('DATA_DIR')) {
+            return ['success' => false, 'error' => 'Constantes BACKUP_DIR ou DATA_DIR não definidas'];
+        }
+
+        // Criar pasta de backup com data/hora
+        $timestamp = date('Y-m-d_His');
+        $backupDir = BACKUP_DIR . '/' . $timestamp;
+        
+        if (!@mkdir($backupDir, 0755, true)) {
+            return ['success' => false, 'error' => "Não foi possível criar diretório: $backupDir"];
+        }
+
+        $files_backed_up = [];
+
+        try {
+            // Arquivos para backup
+            $filesToBackup = glob(DATA_DIR . '/*.json');
+
+            foreach ($filesToBackup as $file) {
+                if (file_exists($file)) {
+                    $filename = basename($file);
+                    $backupFile = $backupDir . '/' . $filename . '.backup';
+                    
+                    if (@copy($file, $backupFile)) {
+                        $files_backed_up[] = $filename;
+                    }
+                }
+            }
+
+            // Tenta logar se a classe existir
+            if (class_exists('LogHandler') && method_exists('LogHandler', 'logSeasonRotation')) {
+                // LogHandler::logBackup($adminId, $timestamp); // Exemplo se existisse
+            }
+
+            return [
+                'success' => true,
+                'timestamp' => $timestamp,
+                'backup_dir' => $backupDir,
+                'files_backed_up' => $files_backed_up,
+                'message' => "Backup criado com sucesso em: $backupDir"
+            ];
+
+        } catch (Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
      * Executar rotação de temporada
-     * 
-     * Remove dados de matches, schedules, audit
+     * * Remove dados de matches, schedules, audit
      * Mas MANTÉM dados de pilots (com status intacto)
      * Faz backup de todos os arquivos com timestamp
-     * 
-     * @param string $adminId ID do admin que rotacionou
+     * * @param string $adminId ID do admin que rotacionou
      * @return array Resultado da operação
      */
     public static function rotateSeasonFull($adminId = 'system') {
@@ -43,9 +95,9 @@ class BackupManager {
         try {
             // === ARQUIVOS PARA FAZER BACKUP E DEPOIS LIMPAR ===
             $filesToClear = [
-                FILE_MATCHES,
-                FILE_SCHEDULES,
-                FILE_AUDIT
+                defined('FILE_MATCHES') ? FILE_MATCHES : DATA_DIR . '/matches.json',
+                defined('FILE_SCHEDULES') ? FILE_SCHEDULES : DATA_DIR . '/schedules.json',
+                defined('FILE_AUDIT') ? FILE_AUDIT : DATA_DIR . '/auditSchedules.json'
             ];
             
             foreach ($filesToClear as $file) {
@@ -67,22 +119,25 @@ class BackupManager {
             }
             
             // === ARQUIVO DE PILOTS - APENAS BACKUP, NÃO LIMPA ===
-            if (file_exists(FILE_PILOTS)) {
+            $filePilots = defined('FILE_PILOTS') ? FILE_PILOTS : DATA_DIR . '/pilots.json';
+            if (file_exists($filePilots)) {
                 $backupFile = $backupDir . '/pilots.json.backup';
-                @copy(FILE_PILOTS, $backupFile);
+                @copy($filePilots, $backupFile);
                 $files_backed_up[] = 'pilots.json (backup apenas)';
             }
             
             // === ARQUIVO DE SESSIONS - APENAS LIMPEZA ===
-            if (file_exists(FILE_SESSIONS)) {
+            $fileSessions = defined('FILE_SESSIONS') ? FILE_SESSIONS : DATA_DIR . '/sessions.json';
+            if (file_exists($fileSessions)) {
                 $emptyData = json_encode([], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-                @file_put_contents(FILE_SESSIONS, $emptyData);
+                @file_put_contents($fileSessions, $emptyData);
                 $files_cleared[] = 'sessions.json';
             }
             
             // === REGISTRAR NO LOG ===
-            $logMessage = "ROTACAO_TEMPORADA por admin: $adminId | Backup: $timestamp";
-            LogHandler::logSeasonRotation($adminId, $timestamp);
+            if (class_exists('LogHandler') && method_exists('LogHandler', 'logSeasonRotation')) {
+                LogHandler::logSeasonRotation($adminId, $timestamp);
+            }
             
             return [
                 'success' => true,
@@ -104,8 +159,7 @@ class BackupManager {
     
     /**
      * Restaurar backup de uma data/hora específica
-     * 
-     * @param string $timestamp Data/hora do backup (YYYY-MM-DD_HHiiss)
+     * * @param string $timestamp Data/hora do backup (YYYY-MM-DD_HHiiss)
      * @return array Resultado
      */
     public static function restoreBackup($timestamp) {
@@ -157,8 +211,7 @@ class BackupManager {
     
     /**
      * Listar todos os backups disponíveis
-     * 
-     * @return array Lista de backups
+     * * @return array Lista de backups
      */
     public static function listBackups() {
         if (!defined('BACKUP_DIR')) {
@@ -173,17 +226,19 @@ class BackupManager {
         
         $dirs = glob(BACKUP_DIR . '/????-??-??_??????', GLOB_ONLYDIR);
         
-        foreach ($dirs as $dir) {
-            $timestamp = basename($dir);
-            $files = count(glob($dir . '/*.backup'));
-            $size = self::getDirSize($dir);
-            
-            $backups[] = [
-                'timestamp' => $timestamp,
-                'files' => $files,
-                'size_mb' => round($size / (1024 * 1024), 2),
-                'path' => $dir
-            ];
+        if ($dirs) {
+            foreach ($dirs as $dir) {
+                $timestamp = basename($dir);
+                $files = count(glob($dir . '/*.backup'));
+                $size = self::getDirSize($dir);
+                
+                $backups[] = [
+                    'timestamp' => $timestamp,
+                    'files' => $files,
+                    'size_mb' => round($size / (1024 * 1024), 2),
+                    'path' => $dir
+                ];
+            }
         }
         
         // Ordenar por data decrescente
@@ -196,8 +251,7 @@ class BackupManager {
     
     /**
      * Deletar um backup específico
-     * 
-     * @param string $timestamp Data/hora do backup
+     * * @param string $timestamp Data/hora do backup
      * @return bool
      */
     public static function deleteBackup($timestamp) {
@@ -216,8 +270,7 @@ class BackupManager {
     
     /**
      * Limpar todos os backups antigos (mais de N dias)
-     * 
-     * @param int $days Dias de retenção
+     * * @param int $days Dias de retenção
      * @return int Número de backups deletados
      */
     public static function cleanOldBackups($days = 30) {
@@ -230,12 +283,14 @@ class BackupManager {
         
         $dirs = glob(BACKUP_DIR . '/????-??-??_??????', GLOB_ONLYDIR);
         
-        foreach ($dirs as $dir) {
-            $mtime = filemtime($dir);
-            
-            if ($mtime < $maxAge) {
-                if (self::deleteDirectory($dir)) {
-                    $deleted++;
+        if ($dirs) {
+            foreach ($dirs as $dir) {
+                $mtime = filemtime($dir);
+                
+                if ($mtime < $maxAge) {
+                    if (self::deleteDirectory($dir)) {
+                        $deleted++;
+                    }
                 }
             }
         }
@@ -245,8 +300,7 @@ class BackupManager {
     
     /**
      * Obter tamanho total de um diretório
-     * 
-     * @param string $dir Caminho do diretório
+     * * @param string $dir Caminho do diretório
      * @return int Tamanho em bytes
      */
     private static function getDirSize($dir) {
@@ -263,8 +317,7 @@ class BackupManager {
     
     /**
      * Deletar diretório recursivamente
-     * 
-     * @param string $dir Caminho do diretório
+     * * @param string $dir Caminho do diretório
      * @return bool
      */
     private static function deleteDirectory($dir) {
@@ -291,5 +344,4 @@ class BackupManager {
         return @rmdir($dir);
     }
 }
-
 ?>

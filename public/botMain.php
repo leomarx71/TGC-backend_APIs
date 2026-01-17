@@ -52,7 +52,8 @@ if (file_exists($envFile)) {
         list($key, $value) = explode('=', $line, 2);
         $key = trim($key);
         $value = trim($value, ' "\'');
-
+        
+        // Tenta usar putenv, mas garante que $_ENV esteja populado
         @putenv("$key=$value"); 
         $_ENV[$key] = $value;
     }
@@ -142,7 +143,10 @@ function getPilotMention($pilot) {
     if (!$pilot) return 'Desconhecido';
     $name = !empty($pilot['nickname_TGC']) ? $pilot['nickname_TGC'] : $pilot['nome'];
     $tgId = $pilot['telegram_id'];
-    // Formato HTML para mencionar usuário pelo ID
+    
+    // Ritchie (Computer ID 999) não tem link de telegram
+    if (isset($pilot['id']) && $pilot['id'] == 999) return "<b>{$name}</b>";
+
     return "<a href=\"tg://user?id={$tgId}\">{$name}</a>";
 }
 
@@ -187,6 +191,13 @@ function getMatchSchedule($matchId) {
     return null;
 }
 
+// Verifica se a partida é contra o computador (ID 999 - Ritchie)
+function isComputerMatch($match) {
+    $p1Id = $match['player_1_id'] ?? null;
+    $p2Id = $match['player_2_id'] ?? null;
+    return ($p1Id == 999 || $p2Id == 999);
+}
+
 // --- TELEGRAM API ---
 
 function apiRequest($method, $parameters) {
@@ -228,6 +239,7 @@ function sendMessage($chatId, $text, $keyboard = null) {
     } else {
         writeLog("SEND MESSAGE [FAIL]: Desc: " . ($result['description'] ?? 'Desconhecido'));
     }
+    return $result; // Retorna o resultado para verificação de sucesso/falha
 }
 
 function editMessageText($chatId, $messageId, $text, $keyboard = null) {
@@ -238,6 +250,7 @@ function editMessageText($chatId, $messageId, $text, $keyboard = null) {
     if (!isset($result['ok']) || !$result['ok']) {
         writeLog("EDIT MESSAGE [FAIL]: " . ($result['description'] ?? 'Erro desconhecido'));
     }
+    return $result;
 }
 
 function answerCallbackQuery($callbackQueryId, $text = null) {
@@ -263,6 +276,51 @@ $update = json_decode($content, true);
 
 if (!$update) {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') writeLog("ERRO INPUT: Recebido POST mas content vazio ou JSON inválido.");
+    exit;
+}
+
+// ---------------------------------------------------------------------------------
+// DETECÇÃO DE NOVOS MEMBROS NO GRUPO
+// ---------------------------------------------------------------------------------
+if (isset($update['message']['new_chat_members'])) {
+    $newMembers = $update['message']['new_chat_members'];
+    $chatId = $update['message']['chat']['id'];
+    
+    foreach ($newMembers as $member) {
+        $userId = $member['id'];
+        $firstName = $member['first_name'] ?? 'Piloto';
+        
+        // Não envia boas-vindas para bots
+        if (isset($member['is_bot']) && $member['is_bot']) continue;
+        
+        $welcomeMsg = "🏁 <b>Bem-vindo ao Top Gear Championship, {$firstName}!</b> 🏁\n\n";
+        $welcomeMsg .= "🚀 <b>COMECE AQUI:</b>\n\n";
+        $welcomeMsg .= "1️⃣ <b>INSCREVA-SE</b>\n";
+        $welcomeMsg .= "   <code>/inscrever-se</code>\n";
+        $welcomeMsg .= "   👉 Registre-se no torneio e receba seu ID de piloto\n\n";
+        
+        $welcomeMsg .= "2️⃣ <b>VER SUAS PARTIDAS</b>\n";
+        $welcomeMsg .= "   <code>/partidas</code>\n";
+        $welcomeMsg .= "   👉 Liste todas as suas partidas ativas\n\n";
+        
+        $welcomeMsg .= "3️⃣ <b>AGENDAR UMA PARTIDA</b>\n";
+        $welcomeMsg .= "   <code>/agendar ID</code>\n";
+        $welcomeMsg .= "   👉 Exemplo: <code>/agendar 10</code>\n\n";
+        
+        $welcomeMsg .= "4️⃣ <b>MUDAR SEU NICKNAME</b>\n";
+        $welcomeMsg .= "   <code>/meuNick SeuNome</code>\n";
+        $welcomeMsg .= "   👉 Defina seu apelido no campeonato\n\n";
+        
+        $welcomeMsg .= "📚 <b>MAIS COMANDOS:</b>\n";
+        $welcomeMsg .= "   <code>/ajuda</code> - Guia completo (PT-BR)\n";
+        $welcomeMsg .= "   <code>/ayuda</code> - Guía completa (ES)\n";
+        $welcomeMsg .= "   <code>/links</code> - Links do comissário\n\n";
+        
+        $welcomeMsg .= "🎮 <i>Boa sorte nas corridas!</i>";
+        
+        sendMessage($chatId, $welcomeMsg);
+        writeLog("WELCOME: Mensagem de boas-vindas enviada para $firstName ($userId) no grupo $chatId");
+    }
     exit;
 }
 
@@ -370,10 +428,12 @@ if (isset($update['callback_query'])) {
         saveJson(FILE_SCHEDULES, $cleanSchedules);
         
         $auditAction = 'PROPOSTO';
-        if ($context == 'edit') $auditAction = 'REAGENDADO';
-        if ($context == 'counter') $auditAction = 'REC_NOVAPROPOSTA';
-        if ($context == 'resched') {
-            $auditAction = 'REAGENDADO';
+        $txtContext = "Nova Proposta";
+        if ($context == 'edit') { $auditAction = 'REAGENDADO'; $txtContext = "Reagendamento"; }
+        if ($context == 'counter') { $auditAction = 'REC_NOVAPROPOSTA'; $txtContext = "Contra-Proposta"; }
+        if ($context == 'resched') { 
+            $auditAction = 'REAGENDADO'; 
+            $txtContext = "Solicitação de Reagendamento";
             $matches = getJson(FILE_MATCHES);
             foreach ($matches as &$mRef) { if ($mRef['id'] == $matchId) $mRef['status'] = 'PENDENTE'; }
             saveJson(FILE_MATCHES, $matches);
@@ -381,7 +441,11 @@ if (isset($update['callback_query'])) {
         
         saveAudit($matchId, $pilot['id'], $auditAction, "Horário: $finalDateTime");
 
-        $advId = ($match['pilot_a_id'] == $pilot['id']) ? $match['pilot_b_id'] : $match['pilot_a_id'];
+        // Identifica IDs estritamente por P1 e P2 (sem fallback)
+        $p1Id = $match['player_1_id'] ?? null;
+        $p2Id = $match['player_2_id'] ?? null;
+        
+        $advId = ($p1Id == $pilot['id']) ? $p2Id : $p1Id;
         $advPilot = getPilotById($advId);
         
         // MENÇÕES COM LINK (Notificação em Grupo)
@@ -394,16 +458,16 @@ if (isset($update['callback_query'])) {
         editMessageText($chatId, $messageId, $txtConfirm);
         answerCallbackQuery($cbId, "Sucesso!");
 
-        // Notificação Privada ao Adversário (Mantida como redundância garantida)
+        // Notificação Privada ao Adversário
         if ($advPilot && $advPilot['telegram_id']) {
-            $msgAdv = "🔔 <b>Nova Proposta: Partida #{$matchId}</b>\n\n📅 Data Sugerida: <b>{$displayData}</b>\n👤 Por: <b>{$meuNome}</b>\n\nUse <code>/agendar {$matchId}</code> para responder.";
+            $msgAdv = "📢 <b>Nova Proposta: Partida #{$matchId}</b>\n\n📅 Data Sugerida: <b>{$displayData}</b>\n👤 Por: <b>{$meuNome}</b>\n\nUse <code>/agendar {$matchId}</code> para responder.";
             if ($context == 'counter') $msgAdv = "🔄 <b>Contra-Proposta Recebida: #{$matchId}</b>\n\nO adversário sugeriu novo horário:\n📅 <b>{$displayData}</b>\n\nUse <code>/agendar {$matchId}</code> para responder.";
             if ($context == 'resched') $msgAdv = "⚠️ <b>Solicitação de Reagendamento: #{$matchId}</b>\n\nNova data proposta: <b>{$displayData}</b>\n\nUse <code>/agendar {$matchId}</code> para confirmar.";
             sendMessage($advPilot['telegram_id'], $msgAdv);
         }
 
-        // Notificação no Grupo Oficial (Se configurado)
-        $groupMsg = "📅 <b>Nova Proposta de Agendamento</b>\n\n🆔 Partida: <b>#{$matchId}</b>\n🏁 {$meuNome} 🆚 {$advNome}\n🕒 Sugestão: <b>{$displayData}</b>\n\n⚠️ <i>Aguardando confirmação.</i>";
+        // Notificação no Grupo Oficial (Cobre propostas, contra-propostas e reagendamentos)
+        $groupMsg = "📅 <b>{$txtContext} de Agendamento</b>\n\n🆔 Partida: <b>#{$matchId}</b>\n🏁 {$meuNome} 🆚 {$advNome}\n🕐 Sugestão: <b>{$displayData}</b>\n\n⚠️ <i>Aguardando confirmação.</i>";
         sendGroupMessage($groupMsg);
     }
 
@@ -451,7 +515,7 @@ if (isset($update['callback_query'])) {
                 }
 
                 // Notificação no Grupo Oficial
-                $groupMsg = "🚫 <b>Agendamento Recusado</b>\n\n🆔 Partida: <b>#{$matchId}</b>\n🛑 Recusado por: {$meuNome}\n🕒 Proposta original de: {$propNome}";
+                $groupMsg = "🚫 <b>Agendamento Recusado</b>\n\n🆔 Partida: <b>#{$matchId}</b>\n🛑 Recusado por: {$meuNome}\n🕐 Proposta original de: {$propNome}";
                 sendGroupMessage($groupMsg);
             }
         }
@@ -517,10 +581,12 @@ writeLog("MENSAGEM: Usuário $userId ($firstName) enviou: $text");
 
 // /links (Novo comando)
 if ($text === '/links') {
-    $msg = "🔗 <b>Links Comissário:</b>\n\n";
-    $msg .= "A - Link para: <a href='https://topgearchampionships.com/comissario/envio_la_liga.php'>[ENVIO CARRO FASE DE GRUPOS]</a>\n";
-    $msg .= "B - Link para: <a href='https://topgearchampionships.com/comissario/envio.php'>[ENVIO CARRO FASE FINAL]</a>\n";
-    $msg .= "C - Link para: <a href='https://topgearchampionships.com/comissario/log-publico.php'>[LOGS PÚBLICOS COMISSARIO]</a>";
+    $msg = "🔗 <b>Links Úteis TGC:</b>\n\n";
+    $msg .= "🏆 <b>Records + PolePosition:</b>\n<a href='https://topgearchampionships.com/dados/TGC-PolePosition.php'>Acessar Site</a>\n\n";
+    $msg .= "🌎 <b>Mundial de Pilotos:</b>\n<a href='https://docs.google.com/spreadsheets/d/182V9hE4Ok5bkkOCByqUzUFXy-J2MvM32_S8oxaQYBgA/view?gid=1400759616#gid=1400759616'>Planilha Mundial</a>\n\n";
+    $msg .= "🏁 <b>Envio Carro (Fase Grupos):</b>\n<a href='https://topgearchampionships.com/comissario/envio_la_liga.php'>Enviar Carro</a>\n\n";
+    $msg .= "🏁 <b>Envio Carro (Fase Final):</b>\n<a href='https://topgearchampionships.com/comissario/envio.php'>Enviar Carro</a>\n\n";
+    $msg .= "🕵️ <b>Logs Públicos:</b>\n<a href='https://topgearchampionships.com/comissario/log-publico.php'>Ver Auditoria</a>";
     sendMessage($chatId, $msg);
     exit;
 }
@@ -590,16 +656,36 @@ if (strpos($text, '/meuNick') === 0) {
         sendMessage($chatId, "🆔 <b>Seu Nickname</b>\n\nAtualmente: <b>{$nick}</b>\n\nPara alterar, digite:\n<code>/meuNick SeuNovoNome</code>");
     } else {
         $pilots = getJson(FILE_PILOTS);
+        $updated = false;
+
         foreach ($pilots as &$p) {
             if ($p['id'] == $currentPilot['id']) {
+                // REGRA DE 3 MESES
+                if (isset($p['last_nick_change'])) {
+                    $lastChange = new DateTime($p['last_nick_change']);
+                    $limitDate = clone $lastChange;
+                    $limitDate->modify('+90 days');
+                    $now = new DateTime();
+
+                    if ($now < $limitDate) {
+                        $fmtDate = $limitDate->format('d/m/Y');
+                        sendMessage($chatId, "⚠️ <b>Alteração Bloqueada</b>\n\nVocê alterou seu nickname recentemente. Pelas regras, deve-se aguardar 3 meses.\n\n📅 Liberado em: <b>{$fmtDate}</b>\n\n<i>Fale com um ADM se precisar alterar antes.</i>");
+                        exit; 
+                    }
+                }
+
                 $p['nickname_TGC'] = $args;
-                $currentPilot['nickname_TGC'] = $args;
+                $p['last_nick_change'] = date('Y-m-d H:i:s'); // Salva data da alteração
+                $updated = true;
                 break;
             }
         }
-        saveJson(FILE_PILOTS, $pilots);
-        writeLog("NICK: Usuário {$currentPilot['id']} alterou nick para $args");
-        sendMessage($chatId, "✅ Nickname alterado com sucesso para: <b>{$args}</b>");
+        
+        if ($updated) {
+            saveJson(FILE_PILOTS, $pilots);
+            writeLog("NICK: Usuário {$currentPilot['id']} alterou nick para $args");
+            sendMessage($chatId, "✅ Nickname alterado com sucesso para: <b>{$args}</b>\n\nℹ️ <i>Próxima alteração permitida em 90 dias.</i>");
+        }
     }
     exit;
 }
@@ -644,7 +730,11 @@ if ($text === '/partidas') {
     
     $myMatches = [];
     foreach ($matches as $m) {
-        if (($m['pilot_a_id'] == $currentPilot['id'] || $m['pilot_b_id'] == $currentPilot['id']) 
+        // Uso estrito de P1 e P2 (sem fallback)
+        $p1Id = $m['player_1_id'] ?? null;
+        $p2Id = $m['player_2_id'] ?? null;
+        
+        if (($p1Id == $currentPilot['id'] || $p2Id == $currentPilot['id']) 
             && in_array($m['status'], ['PENDENTE', 'AGENDADO'])) {
             $myMatches[] = $m;
         }
@@ -657,11 +747,18 @@ if ($text === '/partidas') {
         
         $msg = "";
         foreach ($myMatches as $m) {
-            $pA = getPilotById($m['pilot_a_id'], $pilots);
-            $pB = getPilotById($m['pilot_b_id'], $pilots);
-            $adversario = ($pA['id'] == $currentPilot['id']) ? getPilotDisplayName($pB) : getPilotDisplayName($pA);
+            // Identifica IDs
+            $p1Id = $m['player_1_id'] ?? null;
+            $p2Id = $m['player_2_id'] ?? null;
+            
+            // Busca Nomes
+            $p1Name = getPilotDisplayName(getPilotById($p1Id, $pilots));
+            $p2Name = getPilotDisplayName(getPilotById($p2Id, $pilots));
+            
             $prazo = date('d/m \à\s H:i', strtotime($m['deadline']));
             $local = formatLocal($m['local_track'] ?? null);
+            
+            // Lógica do Título
             $titulo = "{$m['tournament']} - {$m['phase']}";
             if ($m['group_name'] !== $m['phase'] && $m['phase'] == 'Fase de Grupos') $titulo .= " - {$m['group_name']}";
 
@@ -677,6 +774,7 @@ if ($text === '/partidas') {
                 $statusAgendamento = "📅 Proposta de Jogo em aberto (Use /agendar)";
             }
             
+            // Logs da partida
             $matchAudits = array_filter($audits, function($a) use ($m) { return strval($a['match_id']) === strval($m['id']); });
             usort($matchAudits, function($a, $b) { return strtotime($b['timestamp']) - strtotime($a['timestamp']); });
             $lastTwo = array_slice($matchAudits, 0, 2);
@@ -688,7 +786,13 @@ if ($text === '/partidas') {
                 $logTxt .= "\n   ▫️ {$tLog} {$nLog}: {$l['action']}";
             }
 
-            $msg .= "🆔 <b>#{$m['id']}</b> vs {$adversario}\n🏆 {$titulo}\n🛣 {$local}\n⏳ Prazo: {$prazo}\n📌 Status: <b>{$statusAgendamento}</b>";
+            // --- FORMATO ATUALIZADO ---
+            $msg .= "🆔 <b>Partida #{$m['id']}</b>\n";
+            $msg .= "👤 P1 <b>{$p1Name}</b> vs <b>{$p2Name}</b> P2 👤\n";
+            $msg .= "🏆 {$titulo}\n";
+            // --------------------------
+            
+            $msg .= "🛣 {$local}\n⏳ Prazo: {$prazo}\n📌 Status: <b>{$statusAgendamento}</b>";
             if($logTxt) $msg .= "\n📋 Últimos eventos:{$logTxt}";
             $msg .= "\n\n";
         }
@@ -709,7 +813,17 @@ if (strpos($text, '/agendar') === 0) {
     foreach ($matches as $m) if ($m['id'] == $matchId) { $match = $m; break; }
 
     if (!$match) { sendMessage($chatId, "❌ Partida não encontrada."); exit; }
-    if ($match['pilot_a_id'] != $currentPilot['id'] && $match['pilot_b_id'] != $currentPilot['id']) {
+    
+    // --- NOVO: BLOQUEIO RITCHIE / POLE POSITION ---
+    if (isComputerMatch($match)) {
+        sendMessage($chatId, "🚫 <b>Atenção:</b> Não é necessário fazer esse agendamento, pois é uma partida de Pole Position.");
+        exit;
+    }
+    
+    $p1Id = $match['player_1_id'] ?? null;
+    $p2Id = $match['player_2_id'] ?? null;
+    
+    if ($p1Id != $currentPilot['id'] && $p2Id != $currentPilot['id']) {
         sendMessage($chatId, "❌ Partida não é sua."); exit;
     }
 
@@ -721,8 +835,20 @@ if (strpos($text, '/agendar') === 0) {
         $buttons[] = [['text' => "📅 Escolher Data e Hora", 'callback_data' => "calendar|$matchId|new"]];
         $msg = "📅 <b>Agendamento #$matchId</b>\n\nNenhuma proposta ativa no momento.\nToque abaixo para sugerir um horário.";
         if ($sched && $sched['status'] == 'RECUSADO') $msg = "📅 <b>Agendamento #$matchId</b>\n\nA última proposta foi recusada. Sugira um novo horário.";
+        
         $keyboard = ['inline_keyboard' => $buttons];
-        sendMessage($chatId, $msg, $keyboard);
+        
+        // Verifica se está em grupo para redirecionar ao privado
+        if ($chatId != $userId) {
+            $res = sendMessage($userId, $msg, $keyboard);
+            if (isset($res['ok']) && $res['ok']) {
+                sendMessage($chatId, "📬 <b>{$firstName}</b>, enviei as opções de agendamento no seu privado para não poluir o grupo.");
+            } else {
+                sendMessage($chatId, "⚠️ <b>{$firstName}</b>, não consegui enviar mensagem no seu privado.\nPor favor, me chame no privado primeiro (@SeuBot) e tente novamente.");
+            }
+        } else {
+            sendMessage($chatId, $msg, $keyboard);
+        }
     } 
     else {
         $dt = date('d/m H:i', strtotime($sched['data_hora']));
@@ -750,7 +876,18 @@ if (strpos($text, '/agendar') === 0) {
         }
 
         $keyboard = ['inline_keyboard' => $buttons];
-        sendMessage($chatId, $msg, $keyboard);
+        
+        // Verifica se está em grupo para redirecionar ao privado
+        if ($chatId != $userId) {
+            $res = sendMessage($userId, $msg, $keyboard);
+            if (isset($res['ok']) && $res['ok']) {
+                sendMessage($chatId, "📬 <b>{$firstName}</b>, enviei as opções de agendamento no seu privado para não poluir o grupo.");
+            } else {
+                sendMessage($chatId, "⚠️ <b>{$firstName}</b>, não consegui enviar mensagem no seu privado.\nPor favor, me chame no privado primeiro (@SeuBot) e tente novamente.");
+            }
+        } else {
+            sendMessage($chatId, $msg, $keyboard);
+        }
     }
     exit;
 }

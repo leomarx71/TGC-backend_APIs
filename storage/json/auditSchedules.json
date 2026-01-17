@@ -1,41 +1,49 @@
 [
     {
         "id": 1,
-        "timestamp": "2026-01-14 00:39:50",
+        "timestamp": "2026-01-16 22:29:26",
         "match_id": 1,
         "pilot_id": 1,
         "action": "PROPOSTO",
-        "details": "Horário: 2026-01-14 19:00:00"
+        "details": "Horário: 2026-01-19 22:00:00"
     },
     {
         "id": 2,
-        "timestamp": "2026-01-14 00:40:07",
+        "timestamp": "2026-01-16 22:30:12",
         "match_id": 1,
         "pilot_id": 2,
-        "action": "REC_NOVAPROPOSTA",
-        "details": "Horário: 2026-01-15 21:30:00"
+        "action": "CONFIRMADO",
+        "details": "Data Confirmada"
     },
     {
         "id": 3,
-        "timestamp": "2026-01-14 00:40:21",
+        "timestamp": "2026-01-16 22:34:30",
         "match_id": 1,
         "pilot_id": 1,
-        "action": "RECUSADO",
-        "details": "Recusou proposta."
+        "action": "REAGENDADO",
+        "details": "Horário: 2026-01-20 23:00:00"
     },
     {
         "id": 4,
-        "timestamp": "2026-01-14 00:40:35",
+        "timestamp": "2026-01-16 22:46:07",
         "match_id": 1,
-        "pilot_id": 2,
-        "action": "PROPOSTO",
-        "details": "Horário: 2026-01-15 18:30:00"
+        "pilot_id": 1,
+        "action": "REAGENDADO",
+        "details": "Horário: 2026-01-20 23:00:00"
     },
     {
         "id": 5,
-        "timestamp": "2026-01-14 00:40:42",
+        "timestamp": "2026-01-16 22:48:42",
         "match_id": 1,
         "pilot_id": 1,
+        "action": "REAGENDADO",
+        "details": "Horário: 2026-01-19 20:15:00"
+    },
+    {
+        "id": 6,
+        "timestamp": "2026-01-16 22:49:04",
+        "match_id": 1,
+        "pilot_id": 2,
         "action": "CONFIRMADO",
         "details": "Data Confirmada"
     }
