@@ -50,7 +50,7 @@ if (file_exists(__DIR__ . '/../src/Utils/LogHandler.php')) {
     include_once __DIR__ . '/src/Utils/LogHandler.php'; // Fallback
 }
 
-// Carregar BackupManager (CRÍTICO PARA O ERRO RELATADO)
+// Carregar BackupManager
 if (file_exists(__DIR__ . '/../src/Utils/BackupManager.php')) {
     include_once __DIR__ . '/../src/Utils/BackupManager.php';
 } elseif (file_exists(__DIR__ . '/src/Utils/BackupManager.php')) {
@@ -155,6 +155,7 @@ if (!$isAuth) {
 
 // 3. LÓGICA DO DASHBOARD (Listas de apoio)
 $torneios = [
+    "T0 - Torneio de Testes TGC",
     "T1 - Torneio de Verão: Dakar Series",
     "T2 - American LeMans Series",
     "T3 - La Liga - Série Ouro",
@@ -172,11 +173,12 @@ $torneios = [
     "T15 - La Liga - Série Bronze",
     "T16 - Torneio de Primavera: Targa Florio",
     "T17 - Champions Cup",
-    "Mundial de Pilotos"
+    "T18 - Asia LeMans Series"
 ];
 
 $fases = [
     "Fase de Grupos", 
+    "Rodada Atual",
     "Eliminatórias", 
     "Oitavas de Final", 
     "Quartas de Final", 
@@ -259,6 +261,177 @@ function adminLog($msg) {
 
 // INICIALIZAÇÃO DA VARIÁVEL DE FEEDBACK
 $msgFeedback = '';
+
+// --- AÇÃO: EXCLUIR PARTIDA INDIVIDUAL ---
+if (isset($_POST['delete_match_id'])) {
+    $delId = intval($_POST['delete_match_id']);
+    $currentMatches = getJson(FILE_MATCHES);
+    $newMatchesList = [];
+    $found = false;
+    
+    foreach($currentMatches as $m) {
+        if ($m['id'] == $delId) {
+            $found = true;
+            // Opcional: Remover agendamentos relacionados?
+            // Por segurança, mantemos os agendamentos no arquivo mas órfãos, ou limpamos.
+            // Aqui vamos apenas remover a partida.
+        } else {
+            $newMatchesList[] = $m;
+        }
+    }
+    
+    if ($found) {
+        saveJson(FILE_MATCHES, $newMatchesList);
+        adminLog("Partida #$delId excluída individualmente.");
+        $msgFeedback = "<div class='bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4'>🗑️ Partida <b>#$delId</b> excluída.</div>";
+    }
+}
+
+// --- AÇÃO: EDITAR PARTIDA (INCLUINDO VENCEDOR) ---
+if (isset($_POST['edit_match_id'])) {
+    $editId = intval($_POST['edit_match_id']);
+    $newPhase = $_POST['edit_phase'] ?? '';
+    $newGroupNum = $_POST['edit_group_num'] ?? '';
+    $newP1 = intval($_POST['edit_p1'] ?? 0);
+    $newP2 = intval($_POST['edit_p2'] ?? 0);
+    $newDate = $_POST['edit_deadline'] ?? '';
+    $newWinnerVal = $_POST['edit_winner'] ?? 'null'; // 'null', '0', '-1' ou ID
+
+    if ($editId && $newPhase && $newP1 && $newP2 && $newDate) {
+        $currentMatches = getJson(FILE_MATCHES);
+        $schedules = getJson(FILE_SCHEDULES);
+        $updated = false;
+        
+        // --- TRAVA DE SEGURANÇA: VENCEDOR SEM AGENDAMENTO ---
+        $canSave = true;
+        
+        // Se estiver tentando definir um resultado (diferente de 'null' que significa Em Disputa/Pendente)
+        if ($newWinnerVal !== 'null') {
+            $hasActiveSchedule = false;
+            foreach ($schedules as $s) {
+                // Verifica se existe agendamento para esta partida e se não foi recusado
+                if ($s['match_id'] == $editId && $s['status'] != 'RECUSADO') {
+                    $hasActiveSchedule = true;
+                    break;
+                }
+            }
+
+            if (!$hasActiveSchedule) {
+                // BLOQUEIA A AÇÃO
+                $canSave = false;
+                $msgFeedback = "<div class='bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4'>⚠️ <b>Ação Bloqueada:</b> Não é possível definir um resultado (Vencedor/Empate/WO) pois esta partida <b>não possui um agendamento ativo</b>.<br><span class='text-xs'>Os pilotos devem agendar a partida primeiro, ou um agendamento deve ser criado manualmente.</span></div>";
+            }
+        }
+        // ----------------------------------------------------
+
+        if ($canSave) {
+            $newDeadline = $newDate . " 23:59:59";
+            $newGroupName = ($newPhase === "Fase de Grupos") ? "Grupo $newGroupNum" : $newPhase;
+            
+            foreach($currentMatches as &$m) {
+                if ($m['id'] == $editId) {
+                    // Atualiza dados básicos
+                    $m['phase'] = $newPhase;
+                    $m['group_name'] = $newGroupName;
+                    $m['player_1_id'] = $newP1;
+                    $m['player_2_id'] = $newP2;
+                    $m['deadline'] = $newDeadline;
+
+                    // Lógica do Vencedor/Status
+                    if ($newWinnerVal === 'null') {
+                        // Define como pendente/em disputa
+                        $m['winner_id'] = null;
+                        if ($m['status'] == 'CONCLUIDO') {
+                            $m['status'] = 'PENDENTE'; // Reverte status se estava concluído
+                        }
+                    } else {
+                        // Define vencedor (ID, 0=Empate, -1=WO)
+                        $m['winner_id'] = intval($newWinnerVal);
+                        $m['status'] = 'CONCLUIDO';
+                        
+                        // Se definiu vencedor, vamos finalizar o agendamento no schedules.json também para sincronia
+                        foreach ($schedules as &$s) {
+                            if ($s['match_id'] == $editId && $s['status'] != 'RECUSADO') {
+                                $s['status'] = 'PARTIDA_FINALIZADA';
+                                $s['result_winner_id'] = intval($newWinnerVal);
+                                $s['result_confirmed_by'] = 'ADMIN_PAINEL';
+                                $s['updated_at'] = date('Y-m-d H:i:s');
+                            }
+                        }
+                    }
+
+                    $updated = true;
+                    break;
+                }
+            }
+            
+            if ($updated) {
+                saveJson(FILE_MATCHES, $currentMatches);
+                // Salva schedules apenas se houve alteração de vencedor que impactou
+                if ($newWinnerVal !== 'null') {
+                    saveJson(FILE_SCHEDULES, $schedules);
+                }
+                
+                adminLog("Partida #$editId editada.");
+                $msgFeedback = "<div class='bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4'>✏️ Partida <b>#$editId</b> atualizada com sucesso.</div>";
+            }
+        }
+    } else {
+        $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>Erro ao editar: Campos obrigatórios faltando.</div>";
+    }
+}
+
+// --- AÇÃO: CLONAR PARTIDA ---
+if (isset($_POST['clone_match_id'])) {
+    $sourceId = intval($_POST['clone_match_id']);
+    $clonePhase = $_POST['clone_phase'] ?? '';
+    $cloneGroupNum = $_POST['clone_group_num'] ?? '';
+    $cloneP1 = intval($_POST['clone_p1'] ?? 0);
+    $cloneP2 = intval($_POST['clone_p2'] ?? 0);
+    $cloneDate = $_POST['clone_deadline'] ?? '';
+
+    if ($sourceId && $clonePhase && $cloneP1 && $cloneP2 && $cloneDate) {
+        $matches = getJson(FILE_MATCHES);
+        $sourceMatch = null;
+
+        // Encontrar partida de origem
+        foreach($matches as $m) {
+            if ($m['id'] == $sourceId) {
+                $sourceMatch = $m;
+                break;
+            }
+        }
+
+        if ($sourceMatch) {
+            $newDeadline = $cloneDate . " 23:59:59";
+            $newGroupName = ($clonePhase === "Fase de Grupos") ? "Grupo $cloneGroupNum" : $clonePhase;
+            
+            // Criar nova partida baseada na origem
+            $newMatch = [
+                'id' => getNextId($matches),
+                'player_1_id' => $cloneP1,
+                'player_2_id' => $cloneP2,
+                'group_name' => $newGroupName,
+                'tournament' => $sourceMatch['tournament'], // Mantém o torneio
+                'phase' => $clonePhase,
+                'local_track' => $sourceMatch['local_track'], // Copia o local
+                'deadline' => $newDeadline,
+                'status' => 'PENDENTE',
+                'winner_id' => null,
+                'created_at' => date('Y-m-d H:i:s')
+            ];
+
+            $matches[] = $newMatch;
+            saveJson(FILE_MATCHES, $matches);
+            adminLog("Partida #$sourceId clonada para nova partida #{$newMatch['id']}.");
+            $msgFeedback = "<div class='bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4'>✅ <b>Sucesso!</b> Partida clonada. Nova ID: <b>#{$newMatch['id']}</b></div>";
+        } else {
+            $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>Erro: Partida de origem não encontrada.</div>";
+        }
+    } else {
+        $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>Erro ao clonar: Campos obrigatórios faltando.</div>";
+    }
+}
 
 // --- AÇÃO: UPLOAD PARTIDAS (MASSIVO) ---
 if (isset($_FILES['matches_file']) && $_FILES['matches_file']['error'] === UPLOAD_ERR_OK) {
@@ -519,6 +692,14 @@ if (isset($_POST['gerar_partidas'])) {
 
 // CARREGAR DADOS
 $pilots = getJson(FILE_PILOTS);
+
+// ORDENAR PILOTOS ALFABETICAMENTE (Nickname ou Nome) - NOVO
+usort($pilots, function($a, $b) {
+    $nameA = !empty($a['nickname_TGC']) ? $a['nickname_TGC'] : $a['nome'];
+    $nameB = !empty($b['nickname_TGC']) ? $b['nickname_TGC'] : $b['nome'];
+    return strcasecmp($nameA, $nameB);
+});
+
 $matches = getJson(FILE_MATCHES);
 $schedules = getJson(FILE_SCHEDULES);
 $logTail = tailLog(100); 
@@ -563,6 +744,53 @@ if (is_array($matches)) {
             document.querySelectorAll('.p-label').forEach(el => el.innerText = '');
             if (selectionOrder[0]) document.getElementById('label-'+selectionOrder[0]).innerText = '(P1)';
             if (selectionOrder[1]) document.getElementById('label-'+selectionOrder[1]).innerText = '(P2)';
+        }
+
+        // Filtro de Pilotos (Para Geração)
+        function filterPilots() {
+            const input = document.getElementById('pilot_search');
+            const filter = input.value.toLowerCase();
+            const labels = document.querySelectorAll('#pilots_list label');
+
+            labels.forEach(label => {
+                const text = label.innerText.toLowerCase();
+                if (text.includes(filter)) {
+                    label.classList.remove('hidden');
+                    label.classList.add('flex'); // Restaurar display flex
+                } else {
+                    label.classList.add('hidden');
+                    label.classList.remove('flex');
+                }
+            });
+        }
+
+        // Filtro de Partidas (Para Tabela) - NOVO
+        function filterMatches() {
+            const input = document.getElementById('match_search');
+            const filter = input.value.toLowerCase();
+            const tournamentBlocks = document.querySelectorAll('.tournament-block');
+
+            tournamentBlocks.forEach(block => {
+                let hasVisibleMatch = false;
+                const rows = block.querySelectorAll('.match-row');
+
+                rows.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    if (text.includes(filter)) {
+                        row.classList.remove('hidden');
+                        hasVisibleMatch = true;
+                    } else {
+                        row.classList.add('hidden');
+                    }
+                });
+
+                // Ocultar o bloco do torneio se não houver partidas visíveis
+                if (hasVisibleMatch) {
+                    block.classList.remove('hidden');
+                } else {
+                    block.classList.add('hidden');
+                }
+            });
         }
 
         // Lógica de Seleção de Países (Ordenada)
@@ -623,6 +851,103 @@ if (is_array($matches)) {
 
             if (val === 'paises') document.getElementById('container_paises').classList.remove('hidden');
             if (val === 'pistas') document.getElementById('container_pistas').classList.remove('hidden');
+        }
+        
+        // Modal de Edição de Partida
+        function openEditModal(id, phase, groupName, p1, p2, deadline, winnerId) {
+            document.getElementById('edit_match_id').value = id;
+            document.getElementById('edit_match_title').innerText = "Editar Partida #" + id;
+            
+            // Setar Fase
+            const phaseSelect = document.getElementById('edit_phase');
+            phaseSelect.value = phase;
+            toggleEditGroupSelect(phase);
+
+            // Setar Grupo se for Fase de Grupos
+            if (phase === 'Fase de Grupos') {
+                const groupNum = groupName.replace('Grupo ', '');
+                document.getElementById('edit_group_num').value = groupNum;
+            }
+
+            // Setar Pilotos
+            document.getElementById('edit_p1').value = p1;
+            document.getElementById('edit_p2').value = p2;
+
+            // Setar Prazo (Apenas data YYYY-MM-DD)
+            const datePart = deadline.split(' ')[0];
+            document.getElementById('edit_deadline').value = datePart;
+
+            // --- LÓGICA VENCEDOR DINÂMICO ---
+            const winnerSelect = document.getElementById('edit_winner');
+            winnerSelect.innerHTML = ''; // Limpar opções
+
+            // Pegar nomes dos selects de pilotos (hack visual)
+            const p1Text = document.querySelector(`#edit_p1 option[value='${p1}']`)?.text || "P1 (ID " + p1 + ")";
+            const p2Text = document.querySelector(`#edit_p2 option[value='${p2}']`)?.text || "P2 (ID " + p2 + ")";
+
+            // Criar opções
+            const opts = [
+                { val: 'null', txt: '📝 Em Disputa (Padrão)' },
+                { val: p1,     txt: '🏆 Vencedor: ' + p1Text },
+                { val: p2,     txt: '🏆 Vencedor: ' + p2Text },
+                { val: '0',    txt: '🤝 Empate' },
+                { val: '-1',   txt: '⚠️ W.O. Duplo' }
+            ];
+
+            opts.forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o.val;
+                opt.text = o.txt;
+                winnerSelect.appendChild(opt);
+            });
+            
+            // Selecionar valor atual (se null, winnerId vem vazio ou nulo)
+            winnerSelect.value = (winnerId === null || winnerId === '') ? 'null' : winnerId;
+
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+        }
+        
+        function toggleEditGroupSelect(val) {
+            document.getElementById('edit_group_container').classList.toggle('hidden', val !== 'Fase de Grupos');
+        }
+
+        // Modal de Clonagem
+        function openCloneModal(id, phase, groupName, p1, p2, deadline) {
+            document.getElementById('clone_match_id').value = id;
+            document.getElementById('clone_match_title').innerText = "Clonar Partida (Origem: #" + id + ")";
+            
+            // Setar Fase
+            const phaseSelect = document.getElementById('clone_phase');
+            phaseSelect.value = phase;
+            toggleCloneGroupSelect(phase);
+
+            // Setar Grupo
+            if (phase === 'Fase de Grupos') {
+                const groupNum = groupName.replace('Grupo ', '');
+                document.getElementById('clone_group_num').value = groupNum;
+            }
+
+            // Setar Pilotos
+            document.getElementById('clone_p1').value = p1;
+            document.getElementById('clone_p2').value = p2;
+
+            // Setar Prazo
+            const datePart = deadline.split(' ')[0];
+            document.getElementById('clone_deadline').value = datePart;
+
+            document.getElementById('cloneModal').classList.remove('hidden');
+        }
+
+        function closeCloneModal() {
+            document.getElementById('cloneModal').classList.add('hidden');
+        }
+        
+        function toggleCloneGroupSelect(val) {
+            document.getElementById('clone_group_container').classList.toggle('hidden', val !== 'Fase de Grupos');
         }
 
         // Modal de Logs e Backups
@@ -689,7 +1014,11 @@ if (is_array($matches)) {
                     <div class="flex justify-between items-center mb-2">
                         <label class="block text-xs font-bold text-gray-500 uppercase">3. Pilotos (Player 1 & 2)</label>
                     </div>
-                    <div class="max-h-60 overflow-y-auto border border-gray-200 rounded bg-white p-2 space-y-1">
+                    <!-- CAMPO DE FILTRO (NOVO) -->
+                    <div class="mb-2">
+                        <input type="text" id="pilot_search" placeholder="🔍 Buscar piloto..." onkeyup="filterPilots()" class="w-full border-gray-300 rounded border py-1 px-2 text-xs focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div id="pilots_list" class="max-h-60 overflow-y-auto border border-gray-200 rounded bg-white p-2 space-y-1">
                         <?php if(empty($pilots)): ?><p class="text-xs text-red-500 text-center py-4">Sem pilotos cadastrados.</p><?php else: ?>
                             <?php foreach ($pilots as $p): 
                                 $displayLabel = htmlspecialchars($p['nome']);
@@ -790,9 +1119,19 @@ if (is_array($matches)) {
         </form>
 
         <!-- LISTAGEM DE PARTIDAS -->
-        <div class="flex items-center gap-3 mb-6">
+        <div class="flex items-center gap-3 mb-2">
             <h3 class="text-xl font-bold text-gray-800">📋 Partidas Ativas</h3>
+            <span class="cursor-help text-gray-500 hover:text-indigo-600 transition-colors" title="A edição do local da corrida não é permitida. Caso necessário alterar o local, exclua a partida e crie-a novamente.">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </span>
             <span class="bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full"><?= count($matches) ?> total</span>
+        </div>
+
+        <!-- CAMPO DE FILTRO PARTIDAS (NOVO) -->
+        <div class="mb-6">
+            <input type="text" id="match_search" placeholder="🔍 Filtrar partidas (ID, Piloto, Torneio...)" onkeyup="filterMatches()" class="w-full border-gray-300 rounded border py-2 px-3 text-xs focus:ring-indigo-500 focus:border-indigo-500">
         </div>
 
         <?php if (empty($viewMatches)): ?>
@@ -803,7 +1142,7 @@ if (is_array($matches)) {
         <?php else: ?>
             <div class="space-y-8">
             <?php foreach ($viewMatches as $torneioName => $fasesDoTorneio): ?>
-                <div class="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
+                <div class="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200 tournament-block">
                     <div class="bg-gray-800 text-white px-4 py-3 font-bold flex justify-between items-center">
                         <span class="tracking-wide"><?= $torneioName ?></span>
                     </div>
@@ -812,13 +1151,14 @@ if (is_array($matches)) {
                         <table class="w-full text-left border-collapse">
                             <thead>
                                 <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase">
-                                    <th class="px-4 py-3 font-semibold">ID</th>
+                                    <th class="px-4 py-3 font-semibold w-16">ID</th>
                                     <th class="px-4 py-3 font-semibold">Fase / Grupo</th>
                                     <th class="px-4 py-3 font-semibold">Player 1</th>
                                     <th class="px-4 py-3 font-semibold">Player 2</th>
                                     <th class="px-4 py-3 font-semibold">Local</th>
-                                    <th class="px-4 py-3 font-semibold">Prazo</th>
-                                    <th class="px-4 py-3 font-semibold">Agendamento (Status)</th>
+                                    <th class="px-4 py-3 font-semibold w-24">Prazo</th>
+                                    <th class="px-4 py-3 font-semibold">Agendamento</th>
+                                    <th class="px-4 py-3 font-semibold text-right w-24">Ações</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 text-sm text-gray-700">
@@ -849,19 +1189,68 @@ if (is_array($matches)) {
                                         $schedHtml = "<span class='text-gray-400 italic text-xs'>Sem agendamento</span>";
                                         
                                         if ($sched) {
-                                            $dt = date('d/m H:i', strtotime($sched['data_hora']));
+                                            $dtTimestamp = strtotime($sched['data_hora']);
+                                            $dt = date('d/m H:i', $dtTimestamp);
                                             $quemPropos = getPilotNameDisplay($sched['proposed_by_pilot_id'], $pilotsMap);
                                             
+                                            // Check for expiration (JOGO_NAO_REALIZADO logic)
+                                            $isExpired = false;
                                             if ($sched['status'] == 'CONFIRMADO') {
-                                                $schedHtml = "<span class='bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold'>CONFIRMADO</span><br><span class='text-xs'>{$dt}</span>";
+                                                $windowEnd = $dtTimestamp + 1800; // +30 min
+                                                if (time() > $windowEnd) {
+                                                    $isExpired = true;
+                                                }
+                                            }
+
+                                            if ($sched['status'] == 'PARTIDA_FINALIZADA') {
+                                                $winId = $sched['result_winner_id'] ?? 0;
+                                                $winName = $winId ? getPilotNameDisplay($winId, $pilotsMap) : 'Admin';
+                                                if ($winId == 0) $winName = 'EMPATE';
+                                                $schedHtml = "<div class='flex flex-col items-start gap-1'>
+                                                                <span class='bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs font-bold border border-emerald-200'>🏁 FINALIZADA</span>
+                                                                <span class='text-xs font-bold text-emerald-600'>🏆 {$winName}</span>
+                                                              </div>";
+                                            } elseif ($sched['status'] == 'RESULTADO_EM_DISPUTA') {
+                                                $schedHtml = "<div class='flex flex-col items-start gap-1'>
+                                                                <span class='bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-bold border border-red-200 animate-pulse'>🚨 EM DISPUTA</span>
+                                                                <span class='text-[10px] text-red-600 font-bold'>Verificar Logs!</span>
+                                                              </div>";
+                                            } elseif ($sched['status'] == 'RESULTADO_PROPOSTO') {
+                                                $schedHtml = "<div class='flex flex-col items-start gap-1'>
+                                                                <span class='bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-xs font-bold border border-yellow-200'>📝 RESULTADO?</span>
+                                                                <span class='text-[10px] text-yellow-600'>Aguardando Conf.</span>
+                                                              </div>";
+                                            } elseif ($sched['status'] == 'CONFIRMADO') {
+                                                if ($isExpired) {
+                                                    $schedHtml = "<div class='flex flex-col items-start gap-1'>
+                                                                    <span class='bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-xs font-bold border border-gray-300'>❌ NÃO REALIZADO</span>
+                                                                    <span class='text-xs text-red-400 line-through'>{$dt}</span>
+                                                                    <span class='text-[9px] text-gray-400'>(Expirado)</span>
+                                                                  </div>";
+                                                } else {
+                                                    $schedHtml = "<div class='flex flex-col items-start gap-1'>
+                                                                    <span class='bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold border border-green-200'>✅ CONFIRMADO</span>
+                                                                    <span class='text-xs font-mono'>{$dt}</span>
+                                                                  </div>";
+                                                }
                                             } elseif ($sched['status'] == 'RECUSADO') {
-                                                $schedHtml = "<span class='bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-bold'>RECUSADO</span>";
+                                                $schedHtml = "<span class='bg-red-50 text-red-400 px-2 py-0.5 rounded text-xs font-bold decoration-line-through border border-red-100'>RECUSADO</span>";
                                             } else {
-                                                $schedHtml = "<span class='bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold'>PROPOSTO</span><br><span class='text-xs'>{$dt} por {$quemPropos}</span>";
+                                                // PROPOSTO
+                                                $schedHtml = "<div class='flex flex-col items-start gap-1'>
+                                                                <span class='bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold border border-blue-200'>📅 PROPOSTO</span>
+                                                                <span class='text-xs'>{$dt}</span>
+                                                                <span class='text-[9px] text-gray-500'>por {$quemPropos}</span>
+                                                              </div>";
                                             }
                                         }
+                                        
+                                        // Preparar ID do vencedor atual para o modal
+                                        $currWinnerId = $m['winner_id'] ?? '';
+                                        // Precisamos passar 'null' string se for nulo, para o JS entender
+                                        $currWinnerJs = $currWinnerId === null ? 'null' : $currWinnerId;
                                     ?>
-                                    <tr class="hover:bg-gray-50 transition-colors">
+                                    <tr class="hover:bg-gray-50 transition-colors match-row">
                                         <td class="px-4 py-3 font-mono text-gray-500">#<?= $m['id'] ?></td>
                                         <td class="px-4 py-3"><?= $grpDisplay ?></td>
                                         <td class="px-4 py-3"><span class="font-medium text-indigo-900"><?= $pA ?></span></td>
@@ -870,10 +1259,32 @@ if (is_array($matches)) {
                                             📍 <?= $localDisplay ?>
                                         </td>
                                         <td class="px-4 py-3 text-xs font-mono text-red-600">
-                                            <?= date('d/m H:i', strtotime($m['deadline'])) ?>
+                                            <?= date('d/m', strtotime($m['deadline'])) ?>
                                         </td>
                                         <td class="px-4 py-3">
                                             <?= $schedHtml ?>
+                                        </td>
+                                        <td class="px-4 py-3 text-right">
+                                            <div class="flex items-center justify-end gap-2">
+                                                <button onclick="openCloneModal(<?= $m['id'] ?>, '<?= $m['phase'] ?>', '<?= $m['group_name'] ?>', <?= $p1Id ?>, <?= $p2Id ?>, '<?= $m['deadline'] ?>')" class="text-green-500 hover:text-green-700 p-1 rounded hover:bg-green-50" title="Clonar Partida">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                                                    </svg>
+                                                </button>
+                                                <button onclick="openEditModal(<?= $m['id'] ?>, '<?= $m['phase'] ?>', '<?= $m['group_name'] ?>', <?= $p1Id ?>, <?= $p2Id ?>, '<?= $m['deadline'] ?>', '<?= $currWinnerJs ?>')" class="text-blue-500 hover:text-blue-700 p-1 rounded hover:bg-blue-50" title="Editar">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
+                                                </button>
+                                                <form method="POST" onsubmit="return confirm('Tem certeza que deseja EXCLUIR a partida #<?= $m['id'] ?>?');" class="inline">
+                                                    <input type="hidden" name="delete_match_id" value="<?= $m['id'] ?>">
+                                                    <button type="submit" class="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50" title="Excluir">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </td>
                                     </tr>
                                     <?php endforeach; ?>
@@ -1018,6 +1429,134 @@ if (is_array($matches)) {
             <div class="bg-gray-100 px-4 py-2 text-right border-t">
                 <button onclick="closeBackupModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-1 px-4 rounded">Fechar</button>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE EDIÇÃO -->
+    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white w-full max-w-lg rounded-lg shadow-2xl flex flex-col overflow-hidden mx-4">
+            <div class="bg-indigo-600 text-white px-4 py-3 flex justify-between items-center">
+                <h3 class="font-bold text-lg" id="edit_match_title">Editar Partida</h3>
+                <button onclick="closeEditModal()" class="text-white hover:text-gray-200 text-xl">&times;</button>
+            </div>
+            <form method="POST" class="p-6 space-y-4">
+                <input type="hidden" name="edit_match_id" id="edit_match_id">
+                
+                <!-- Fase e Grupo -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Fase</label>
+                    <select name="edit_phase" id="edit_phase" onchange="toggleEditGroupSelect(this.value)" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <?php foreach ($fases as $f): ?><option value="<?= $f ?>"><?= $f ?></option><?php endforeach; ?>
+                    </select>
+                </div>
+                <div id="edit_group_container" class="hidden">
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Número do Grupo</label>
+                    <select name="edit_group_num" id="edit_group_num" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
+                        <?php for($g=1; $g<=8; $g++): ?><option value="<?= $g ?>"><?= $g ?></option><?php endfor; ?>
+                    </select>
+                </div>
+
+                <!-- Pilotos -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Player 1</label>
+                        <select name="edit_p1" id="edit_p1" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
+                            <?php foreach ($pilots as $p): ?>
+                                <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nickname_TGC'] ?: $p['nome']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Player 2</label>
+                        <select name="edit_p2" id="edit_p2" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
+                            <?php foreach ($pilots as $p): ?>
+                                <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nickname_TGC'] ?: $p['nome']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Prazo -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Prazo Final</label>
+                    <input type="date" name="edit_deadline" id="edit_deadline" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
+                </div>
+
+                <!-- Vencedor / Resultado -->
+                <div class="bg-gray-50 p-3 rounded border border-gray-200">
+                    <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Definir Resultado</label>
+                    <select name="edit_winner" id="edit_winner" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm font-bold text-indigo-800">
+                        <!-- Populated via JS -->
+                    </select>
+                </div>
+
+                <div class="pt-4 flex justify-end gap-2">
+                    <button type="button" onclick="closeEditModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL DE CLONAGEM -->
+    <div id="cloneModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white w-full max-w-lg rounded-lg shadow-2xl flex flex-col overflow-hidden mx-4">
+            <div class="bg-green-600 text-white px-4 py-3 flex justify-between items-center">
+                <h3 class="font-bold text-lg" id="clone_match_title">Clonar Partida</h3>
+                <button onclick="closeCloneModal()" class="text-white hover:text-gray-200 text-xl">&times;</button>
+            </div>
+            <form method="POST" class="p-6 space-y-4">
+                <input type="hidden" name="clone_match_id" id="clone_match_id">
+                
+                <!-- Fase e Grupo -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Fase</label>
+                    <select name="clone_phase" id="clone_phase" onchange="toggleCloneGroupSelect(this.value)" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm focus:ring-green-500 focus:border-green-500">
+                        <?php foreach ($fases as $f): ?><option value="<?= $f ?>"><?= $f ?></option><?php endforeach; ?>
+                    </select>
+                </div>
+                <div id="clone_group_container" class="hidden">
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Número do Grupo</label>
+                    <select name="clone_group_num" id="clone_group_num" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
+                        <?php for($g=1; $g<=8; $g++): ?><option value="<?= $g ?>"><?= $g ?></option><?php endfor; ?>
+                    </select>
+                </div>
+
+                <!-- Pilotos -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Player 1</label>
+                        <select name="clone_p1" id="clone_p1" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
+                            <?php foreach ($pilots as $p): ?>
+                                <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nickname_TGC'] ?: $p['nome']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Player 2</label>
+                        <select name="clone_p2" id="clone_p2" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
+                            <?php foreach ($pilots as $p): ?>
+                                <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nickname_TGC'] ?: $p['nome']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Prazo -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Prazo Final</label>
+                    <input type="date" name="clone_deadline" id="clone_deadline" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
+                </div>
+                
+                <div class="text-xs text-gray-500 italic mt-2">
+                    * O local da corrida (Países/Pistas) será copiado da partida original.
+                </div>
+
+                <div class="pt-4 flex justify-end gap-2">
+                    <button type="button" onclick="closeCloneModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
+                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Criar Cópia</button>
+                </div>
+            </form>
         </div>
     </div>
 
