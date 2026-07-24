@@ -1369,9 +1369,9 @@ if (stripos($text, '/agendar') === 0) {
         if ($chatId != $userId) {
             $res = sendMessage($userId, $msg, $keyboard);
             if (isset($res['ok']) && $res['ok']) {
-                sendMessage($chatId, "📬 <b>{$firstName}</b>, enviei as opções de agendamento no seu privado para não poluir o grupo.");
+                sendMessage($chatId, "📬 <b>" . getPilotDisplayName($currentPilot) . "</b>, enviei as opções de agendamento no seu privado para não poluir o grupo.");
             } else {
-                sendMessage($chatId, "⚠️ <b>{$firstName}</b>, não consegui enviar mensagem no seu privado.\nPor favor, me chame no privado primeiro (@TopGearTGCBot) e tente novamente.");
+                sendMessage($chatId, "⚠️ <b>" . getPilotDisplayName($currentPilot) . "</b>, não consegui enviar mensagem no seu privado.\nPor favor, me chame no privado primeiro (@TopGearTGCBot) e tente novamente.");
             }
         } else {
             sendMessage($chatId, $msg, $keyboard);
@@ -1408,9 +1408,9 @@ if (stripos($text, '/agendar') === 0) {
         if ($chatId != $userId) {
             $res = sendMessage($userId, $msg, $keyboard);
             if (isset($res['ok']) && $res['ok']) {
-                sendMessage($chatId, "📬 <b>{$firstName}</b>, enviei as opções de agendamento no seu privado para não poluir o grupo.");
+                sendMessage($chatId, "📬 <b>" . getPilotDisplayName($currentPilot) . "</b>, enviei as opções de agendamento no seu privado para não poluir o grupo.");
             } else {
-                sendMessage($chatId, "⚠️ <b>{$firstName}</b>, não consegui enviar mensagem no seu privado.\nPor favor, me chame no privado primeiro (@TopGearTGCBot) e tente novamente.");
+                sendMessage($chatId, "⚠️ <b>" . getPilotDisplayName($currentPilot) . "</b>, não consegui enviar mensagem no seu privado.\nPor favor, me chame no privado primeiro (@TopGearTGCBot) e tente novamente.");
             }
         } else {
             sendMessage($chatId, $msg, $keyboard);
