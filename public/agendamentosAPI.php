@@ -9,7 +9,7 @@
 // =================================================================================
 
 date_default_timezone_set('America/Sao_Paulo');
-ini_set('display_errors', 0); 
+ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 error_reporting(E_ALL);
 
@@ -179,11 +179,17 @@ if (!$input || !isset($input['message']['from']['pilotID']) || !isset($input['me
 
 $pilotID = $input['message']['from']['pilotID'];
 $function = trim($input['message']['function']);
-$responseMsg = "";
 
-// Mock do sendMessage para coletar a resposta
-function respond($text) {
-    echo json_encode(['ok' => true, 'response' => $text], JSON_UNESCAPED_UNICODE);
+// Mock do sendMessage para coletar a resposta em JSON limpo e formatado para WhatsApp
+function respond($text, $data = null) {
+    $responseArray = [
+        'ok' => true,
+        'response' => $text
+    ];
+    if ($data !== null) {
+        $responseArray['data'] = $data;
+    }
+    echo json_encode($responseArray, JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -211,29 +217,29 @@ $cmd = explode(' ', strtolower($function))[0];
 
 switch ($cmd) {
     case '/links':
-        $msg = "🔗 <b>Links Úteis TGC:</b>\n\n";
-        $msg .= "🏆 <b>Records + PolePosition:</b>\nhttps://topgearchampionships.com/dados/TGC-PolePosition.php\n\n";
-        $msg .= "🌎 <b>Mundial de Pilotos:</b>\nhttps://docs.google.com/spreadsheets/d/182V9hE4Ok5bkkOCByqUzUFXy-J2MvM32_S8oxaQYBgA/view?gid=1400759616#gid=1400759616\n\n";
-        $msg .= "🏁 <b>Envio Carro:</b>\nhttps://topgearchampionships.com/comissario/envio_la_liga.php\n\n";
-        $msg .= "🕵️ <b>Logs Públicos:</b>\nhttps://topgearchampionships.com/comissario/log-publico.php";
+        $msg = "🔗 *Links Úteis TGC:*\n\n";
+        $msg .= "🏆 *Records + PolePosition:*\nhttps://topgearchampionships.com/dados/TGC-PolePosition.php\n\n";
+        $msg .= "🌎 *Mundial de Pilotos:*\nhttps://docs.google.com/spreadsheets/d/182V9hE4Ok5bkkOCByqUzUFXy-J2MvM32_S8oxaQYBgA/view?gid=1400759616#gid=1400759616\n\n";
+        $msg .= "🏁 *Envio Carro:*\nhttps://topgearchampionships.com/comissario/envio_la_liga.php\n\n";
+        $msg .= "🕵️ *Logs Públicos:*\nhttps://topgearchampionships.com/comissario/log-publico.php";
         respond($msg);
         break;
 
     case '/ajuda':
     case '/tutorial-ptbr':
     case '/tutorial':
-        $msg = "📚 <b>COMO AGENDAR SUAS PARTIDAS</b>\n\n";
-        $msg .= "<b>1. VISUALIZAR PARTIDAS:</b> /partidas\n";
-        $msg .= "<b>2. INICIAR AGENDAMENTO:</b> /agendar ID\n";
-        $msg .= "<b>3. NO DIA DO JOGO:</b> /play ID\n";
-        $msg .= "<b>4. INFORMAR VENCEDOR:</b> /resultado ID\n";
+        $msg = "📚 *COMO AGENDAR SUAS PARTIDAS*\n\n";
+        $msg .= "*1. VISUALIZAR PARTIDAS:* /partidas\n";
+        $msg .= "*2. INICIAR AGENDAMENTO:* /agendar ID\n";
+        $msg .= "*3. NO DIA DO JOGO:* /play ID\n";
+        $msg .= "*4. INFORMAR VENCEDOR:* /resultado ID\n";
         $msg .= "\nUse os comandos acima para gerenciar seus jogos.";
         respond($msg);
         break;
 
     case '/ayuda':
     case '/tutorial-es':
-        $msg = "📚 <b>CÓMO AGENDAR TUS PARTIDOS</b>\n\n";
+        $msg = "📚 *CÓMO AGENDAR TUS PARTIDOS*\n\n";
         $msg .= "1. VER PARTIDOS: /partidas\n";
         $msg .= "2. INICIAR GESTIÓN: /agendar ID\n";
         $msg .= "3. EN EL DÍA DEL JUEGO: /play ID\n";
@@ -254,14 +260,14 @@ switch ($cmd) {
         ];
         $pilots[] = $newPilot;
         saveJson(FILE_PILOTS, $pilots);
-        respond("🏁 <b>Inscrição Realizada!</b>\n\nBem-vindo! Use <code>/meuNick NovoNome</code> para alterar seu nick.");
+        respond("🏁 *Inscrição Realizada!*\n\nBem-vindo! Use /meuNick NovoNome para alterar seu nick.");
         break;
 
     case '/meunick':
         $args = trim(substr($function, 8));
         if (empty($args)) {
             $nick = getPilotDisplayName($currentPilot);
-            respond("🆔 <b>Seu Nickname</b>\n\nAtualmente: <b>{$nick}</b>\n\nPara alterar: <code>/meuNick SeuNovoNome</code>");
+            respond("🆔 *Seu Nickname*\n\nAtualmente: *$nick*\n\nPara alterar: /meuNick SeuNovoNome");
         } else {
             $pilots = getJson(FILE_PILOTS);
             foreach ($pilots as &$p) {
@@ -272,7 +278,7 @@ switch ($cmd) {
                     $p['nickname_TGC'] = $args;
                     $p['last_nick_change'] = date('Y-m-d H:i:s');
                     saveJson(FILE_PILOTS, $pilots);
-                    respond("✅ Nickname alterado para: <b>{$args}</b>");
+                    respond("✅ Nickname alterado para: *$args*");
                 }
             }
         }
@@ -282,11 +288,14 @@ switch ($cmd) {
         $matches = getJson(FILE_MATCHES);
         $pilots = getJson(FILE_PILOTS);
         $myMatches = array_filter($matches, function($m) use ($currentPilot) {
-            return ($m['player_1_id'] == $currentPilot['id'] || $m['player_2_id'] == $currentPilot['id']) 
-                   && in_array($m['status'], ['PENDENTE', 'AGENDADO']);
+            return ($m['player_1_id'] == $currentPilot['id'] || $m['player_2_id'] == $currentPilot['id'])
+                && in_array($m['status'], ['PENDENTE', 'AGENDADO']);
         });
-        if (empty($myMatches)) respond("Sem partidas pendentes.");
+        if (empty($myMatches)) respond("Sem partidas pendentes.", []);
+
         $msg = "";
+        $matchDataList = [];
+
         foreach ($myMatches as $m) {
             $p1 = getPilotById($m['player_1_id'], $pilots);
             $p2 = getPilotById($m['player_2_id'], $pilots);
@@ -294,9 +303,19 @@ switch ($cmd) {
             $p2Name = getPilotDisplayName($p2);
             $sched = getMatchSchedule($m['id']);
             $status = $sched ? "📌 Status: {$sched['status']}" : "⚠️ Aguardando Agendamento";
-            $msg .= "🆔 <b>Partida #{$m['id']}</b>\n👤 {$p1Name} vs {$p2Name}\n🏆 {$m['tournament']}\n{$status}\n\n";
+
+            $msg .= "🆔 *Partida #{$m['id']}*\n👤 {$p1Name} vs {$p2Name}\n🏆 {$m['tournament']}\n{$status}\n\n";
+
+            // Adicionando os dados estruturados no response caso o bot Node precise
+            $matchDataList[] = [
+                'id' => $m['id'],
+                'p1_name' => $p1Name,
+                'p2_name' => $p2Name,
+                'tournament' => $m['tournament'],
+                'schedule_status' => $sched ? $sched['status'] : 'PENDENTE'
+            ];
         }
-        respond($msg);
+        respond(trim($msg), $matchDataList);
         break;
 
     case '/audit':
@@ -305,19 +324,28 @@ switch ($cmd) {
         if (!$matchId) respond("❌ Use: /audit ID");
         $audits = array_filter(getJson(FILE_AUDIT), function($a) use ($matchId) { return $a['match_id'] == $matchId; });
         if (empty($audits)) respond("📭 Nenhum registro para partida #$matchId");
-        $msg = "🕵️‍♂️ <b>Auditoria Partida #$matchId</b>\n\n";
+        $msg = "🕵️‍♂️ *Auditoria Partida #$matchId*\n\n";
+
+        $auditData = [];
         foreach ($audits as $a) {
             $p = getPilotById($a['pilot_id']);
             $nome = getPilotDisplayName($p);
             $time = date('d/m H:i', strtotime($a['timestamp']));
-            $msg .= "[$time] <b>{$nome}</b>: {$a['action']}\n<i>{$a['details']}</i>\n\n";
+
+            // Tratamento Markdown para o WhatsApp (_Italico_ em vez de <i>)
+            $msg .= "[$time] *{$nome}*: {$a['action']}\n_{$a['details']}_\n\n";
+
+            $auditData[] = [
+                'time' => $time,
+                'pilot' => $nome,
+                'action' => $a['action'],
+                'details' => $a['details']
+            ];
         }
-        respond($msg);
+        respond(trim($msg), $auditData);
         break;
 
     case '/play':
-    case '/jogar':
-    case '/jugar':
         $parts = explode(' ', $function);
         $matchId = intval($parts[1] ?? 0);
         if (!$matchId) respond("❌ Use: /play ID");
@@ -330,12 +358,12 @@ switch ($cmd) {
         }
         $sched = getMatchSchedule($matchId);
         if (!$sched || $sched['status'] !== 'CONFIRMADO') respond("⚠️ Partida não está confirmada para hoje.");
-        
+
         $now = time();
         $dtTimestamp = strtotime($sched['data_hora']);
         if ($now < ($dtTimestamp - 1800)) respond("⏳ Muito cedo. A janela abre 30min antes do horário.");
         if ($now > ($dtTimestamp + 1800)) respond("❌ Horário expirado.");
-        
+
         saveAudit($matchId, $currentPilot['id'], 'PLAYER_READY', 'Piloto notificou que está pronto via API');
         respond("✅ Você notificou que está pronto para a partida #$matchId!");
         break;
@@ -348,7 +376,7 @@ switch ($cmd) {
         break;
 
     case '/agendar':
-        respond("📅 Agendamentos interativos devem ser feitos via Telegram.");
+        respond("📅 Agendamentos interativos devem ser feitos pelo Bot do WhatsApp.");
         break;
 
     default:
