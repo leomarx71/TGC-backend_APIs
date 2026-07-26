@@ -164,6 +164,12 @@ function hasAuditAction($matchId, $action, $timeThreshold = null) {
     return false;
 }
 
+// Verifica se a partida é contra o computador (ex: Ritchie / Pole Position)
+function isComputerMatch($match) {
+    // Retorna true se um dos IDs for <= 0 (geralmente bots) ou se o torneio tiver 'Pole' no nome
+    return ($match['player_1_id'] <= 0 || $match['player_2_id'] <= 0 || stripos($match['tournament'], 'Pole') !== false);
+}
+
 // =================================================================================
 // 3. PROCESSAMENTO DO INPUT
 // =================================================================================
@@ -220,16 +226,15 @@ switch ($cmd) {
         $msg = "🔗 *Links Úteis TGC:*\n\n";
         $msg .= "🏆 *Records + PolePosition:*\nhttps://topgearchampionships.com/dados/TGC-PolePosition.php\n\n";
         $msg .= "🌎 *Mundial de Pilotos:*\nhttps://docs.google.com/spreadsheets/d/182V9hE4Ok5bkkOCByqUzUFXy-J2MvM32_S8oxaQYBgA/view?gid=1400759616#gid=1400759616\n\n";
-        $msg .= "🏁 *Envio Carro:*\nhttps://topgearchampionships.com/comissario/envio_la_liga.php\n\n";
+        $msg .= "🏁 *Envio Comissário La Liga:*\nhttps://topgearchampionships.com/comissario/envio_la_liga.php\n\n";
+        $msg .= "🏁 *Envio Comissário Normal:*\nhttps://topgearchampionships.com/comissario/envio.php\n\n";
         $msg .= "🕵️ *Logs Públicos:*\nhttps://topgearchampionships.com/comissario/log-publico.php";
         respond($msg);
         break;
 
     case '/ajuda':
-    case '/tutorial-ptbr':
-    case '/tutorial':
         $msg = "📚 *COMO AGENDAR SUAS PARTIDAS*\n\n";
-        $msg .= "*1. VISUALIZAR PARTIDAS:* /partidas\n";
+        $msg .= "*1. VER SUAS PARTIDAS:* " . "'/partidas'" . "\n";
         $msg .= "*2. INICIAR AGENDAMENTO:* /agendar ID\n";
         $msg .= "*3. NO DIA DO JOGO:* /play ID\n";
         $msg .= "*4. INFORMAR VENCEDOR:* /resultado ID\n";
@@ -238,12 +243,11 @@ switch ($cmd) {
         break;
 
     case '/ayuda':
-    case '/tutorial-es':
         $msg = "📚 *CÓMO AGENDAR TUS PARTIDOS*\n\n";
-        $msg .= "1. VER PARTIDOS: /partidas\n";
-        $msg .= "2. INICIAR GESTIÓN: /agendar ID\n";
-        $msg .= "3. EN EL DÍA DEL JUEGO: /play ID\n";
-        $msg .= "4. INFORMAR GANADOR: /resultado ID";
+        $msg .= "*1. VER SUS PARTIDOS:* " . "'/partidas'" . "\n";
+        $msg .= "*2. INICIAR GESTIÓN:* /agendar ID\n";
+        $msg .= "*3. EN EL DÍA DEL JUEGO:* /play ID\n";
+        $msg .= "*4. INFORMAR GANADOR:* /resultado ID";
         respond($msg);
         break;
 
@@ -254,7 +258,7 @@ switch ($cmd) {
             'id' => getNextId($pilots),
             'telegram_id' => $pilotID,
             'nome' => "Piloto API",
-            'nickname_TGC' => "Piloto API",
+            'nickname_TGC' => "Piloto_API",
             'ativo' => 1,
             'created_at' => date('Y-m-d H:i:s')
         ];
@@ -267,7 +271,7 @@ switch ($cmd) {
         $args = trim(substr($function, 8));
         if (empty($args)) {
             $nick = getPilotDisplayName($currentPilot);
-            respond("🆔 *Seu Nickname*\n\nAtualmente: *$nick*\n\nPara alterar: /meuNick SeuNovoNome");
+            respond("🆔 *Seu Nickname*\n\nAtualmente: *$nick*\n\nPara alterar: /meuNick SeuNovoNome\n\n⚠️ Ao mudar a alteração bloqueada pelos 90 dias.");
         } else {
             $pilots = getJson(FILE_PILOTS);
             foreach ($pilots as &$p) {
@@ -376,7 +380,76 @@ switch ($cmd) {
         break;
 
     case '/agendar':
-        respond("📅 Agendamentos interativos devem ser feitos pelo Bot do WhatsApp.");
+        $parts = explode(' ', $function);
+        if (count($parts) < 2) {
+            respond("❌ Use: `/agendar ID`", ['state' => 'ERROR_MISSING_ID']);
+        }
+
+        $matchId = intval($parts[1]);
+        $matches = getJson(FILE_MATCHES);
+        $match = null;
+        foreach ($matches as $m) {
+            if ($m['id'] == $matchId) { $match = $m; break; }
+        }
+
+        if (!$match) {
+            respond("❌ Partida não encontrada.", ['state' => 'ERROR_NOT_FOUND']);
+        }
+
+        // Bloqueio Ritchie / Pole Position
+        if (isComputerMatch($match)) {
+            respond("🚫 *Atenção:* Não é necessário fazer esse agendamento, pois é uma partida de Pole Position (contra o computador).", ['state' => 'ERROR_COMPUTER_MATCH']);
+        }
+
+        $p1Id = $match['player_1_id'] ?? null;
+        $p2Id = $match['player_2_id'] ?? null;
+
+        if ($p1Id != $currentPilot['id'] && $p2Id != $currentPilot['id']) {
+            respond("❌ Esta partida não é sua.", ['state' => 'ERROR_NOT_OWNER']);
+        }
+
+        $sched = getMatchSchedule($matchId);
+        $msg = "";
+        $responseData = [
+            'match_id' => $matchId,
+            'state' => ''
+        ];
+
+        if (!$sched || $sched['status'] == 'RECUSADO') {
+            if ($sched && $sched['status'] == 'RECUSADO') {
+                $msg = "📅 *Agendamento #$matchId*\n\nA última proposta foi recusada.\n\nSugira um novo horário. Responda esta mensagem com a data e hora desejada (Ex: *25/07 19:00*).";
+            } else {
+                $msg = "📅 *Agendamento #$matchId*\n\nNenhuma proposta ativa no momento.\n\nPara sugerir um horário, responda esta mensagem com a data e hora (Ex: *25/07 19:00*).";
+            }
+            $responseData['state'] = 'REQUIRE_PROPOSAL';
+
+        } else {
+            $dt = date('d/m H:i', strtotime($sched['data_hora']));
+            $proposerId = $sched['proposed_by_pilot_id'];
+            $isMeProposer = ($proposerId == $currentPilot['id']);
+
+            // Definindo nome do oponente para a mensagem
+            $opponentId = ($p1Id == $currentPilot['id']) ? $p2Id : $p1Id;
+            $opponentName = getPilotDisplayName(getPilotById($opponentId));
+            $responseData['opponent_name'] = $opponentName;
+            $responseData['proposed_date'] = $dt;
+
+            if ($sched['status'] == 'PROPOSTO') {
+                if ($isMeProposer) {
+                    $msg = "⏳ *Proposta Enviada*\n\nVocê sugeriu: *$dt*\nAguardando resposta de *$opponentName*.\n\nSe desejar alterar a proposta antes dele responder, digite a nova data (Ex: *25/07 19:00*).";
+                    $responseData['state'] = 'WAITING_OPPONENT';
+                } else {
+                    $msg = "🔔 *Proposta Recebida*\n\n👤 *$opponentName* sugeriu o seguinte horário:\n📅 *$dt*\n\nO que deseja fazer? Responda com o *NÚMERO* da opção:\n\n[ *1* ] ✅ Confirmar\n[ *2* ] 🔄 Contra-proposta (Sugerir nova data)\n[ *3* ] 🚫 Apenas Recusar";
+                    $responseData['state'] = 'REQUIRE_DECISION_PROPOSAL';
+                }
+            }
+            elseif ($sched['status'] == 'CONFIRMADO') {
+                $msg = "✅ *Agendamento Confirmado*\n\n📅 Data: *$dt*\n👤 Oponente: *$opponentName*\n\nDeseja alterar? Para reagendar, basta responder com a nova data (Ex: *25/07 19:00*).";
+                $responseData['state'] = 'CONFIRMED_CAN_EDIT';
+            }
+        }
+
+        respond($msg, $responseData);
         break;
 
     default:
