@@ -106,13 +106,13 @@ function getPilotById($id, $pilots = null) {
     return null;
 }
 
-function getPilotDisplayName($pilot) {
+function getPilotDisplayNameByNick($pilot) {
     if (!$pilot) return 'Desconhecido';
     return !empty($pilot['nickname_TGC']) ? $pilot['nickname_TGC'] : $pilot['nome'];
 }
 
 function isAdmin($tgId) {
-    $admins = [880630967, 5857084855, 48568446];
+    $admins = [5511993499981, 5561981356228, 5516992909090];
     return in_array($tgId, $admins);
 }
 
@@ -177,13 +177,14 @@ function isComputerMatch($match) {
 header('Content-Type: application/json');
 $input = json_decode(file_get_contents('php://input'), true);
 
-if (!$input || !isset($input['message']['from']['pilotID']) || !isset($input['message']['function'])) {
+if (!$input || !isset($input['message']['from']['pilotID']) || !isset($input['message']['from']['pilotName']) || !isset($input['message']['function'])) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'Invalid Input']);
     exit;
 }
 
 $pilotID = $input['message']['from']['pilotID'];
+$pilotName = $input['message']['from']['pilotName'];
 $function = trim($input['message']['function']);
 
 // Mock do sendMessage para coletar a resposta em JSON limpo e formatado para WhatsApp
@@ -230,7 +231,6 @@ switch ($cmd) {
         $msg .= "🏁 *Envio Comissário Normal:*\nhttps://topgearchampionships.com/comissario/envio.php\n\n";
         $msg .= "🕵️ *Logs Públicos:*\nhttps://topgearchampionships.com/comissario/log-publico.php";
         respond($msg);
-        break;
 
     case '/ajuda':
         $msg = "📚 *COMO AGENDAR SUAS PARTIDAS*\n\n";
@@ -240,7 +240,6 @@ switch ($cmd) {
         $msg .= "*4. INFORMAR VENCEDOR:* /resultado ID\n";
         $msg .= "\nUse os comandos acima para gerenciar seus jogos.";
         respond($msg);
-        break;
 
     case '/ayuda':
         $msg = "📚 *CÓMO AGENDAR TUS PARTIDOS*\n\n";
@@ -249,7 +248,6 @@ switch ($cmd) {
         $msg .= "*3. EN EL DÍA DEL JUEGO:* /play ID\n";
         $msg .= "*4. INFORMAR GANADOR:* /resultado ID";
         respond($msg);
-        break;
 
     case '/inscrever':
         $pilots = getJson(FILE_PILOTS);
@@ -265,12 +263,11 @@ switch ($cmd) {
         $pilots[] = $newPilot;
         saveJson(FILE_PILOTS, $pilots);
         respond("🏁 *Inscrição Realizada!*\n\nBem-vindo! Use /meuNick NovoNome para alterar seu nick.");
-        break;
 
     case '/meunick':
         $args = trim(substr($function, 8));
         if (empty($args)) {
-            $nick = getPilotDisplayName($currentPilot);
+            $nick = getPilotDisplayNameByNick($currentPilot);
             respond("🆔 *Seu Nickname*\n\nAtualmente: *$nick*\n\nPara alterar: /meuNick SeuNovoNome\n\n⚠️ Ao mudar a alteração bloqueada pelos 90 dias.");
         } else {
             $pilots = getJson(FILE_PILOTS);
@@ -303,8 +300,8 @@ switch ($cmd) {
         foreach ($myMatches as $m) {
             $p1 = getPilotById($m['player_1_id'], $pilots);
             $p2 = getPilotById($m['player_2_id'], $pilots);
-            $p1Name = getPilotDisplayName($p1);
-            $p2Name = getPilotDisplayName($p2);
+            $p1Name = getPilotDisplayNameByNick($p1);
+            $p2Name = getPilotDisplayNameByNick($p2);
             $sched = getMatchSchedule($m['id']);
             $status = $sched ? "📌 Status: {$sched['status']}" : "⚠️ Aguardando Agendamento";
 
@@ -320,7 +317,18 @@ switch ($cmd) {
             ];
         }
         respond(trim($msg), $matchDataList);
-        break;
+
+    case '/usernumber':
+        $pilots = getJson(FILE_PILOTS);
+        foreach ($pilots as $p) {
+            if ($p['nome'] == $pilotName) {
+                $pilotID = $p['telegram_id'];
+                respond($pilotID);
+            } else {
+                $pilotID=351935525827;
+            }
+        }
+        respond($pilotID);
 
     case '/audit':
         $parts = explode(' ', $function);
@@ -333,7 +341,7 @@ switch ($cmd) {
         $auditData = [];
         foreach ($audits as $a) {
             $p = getPilotById($a['pilot_id']);
-            $nome = getPilotDisplayName($p);
+            $nome = getPilotDisplayNameByNick($p);
             $time = date('d/m H:i', strtotime($a['timestamp']));
 
             // Tratamento Markdown para o WhatsApp (_Italico_ em vez de <i>)
@@ -347,7 +355,6 @@ switch ($cmd) {
             ];
         }
         respond(trim($msg), $auditData);
-        break;
 
     case '/play':
         $parts = explode(' ', $function);
@@ -370,21 +377,15 @@ switch ($cmd) {
 
         saveAudit($matchId, $currentPilot['id'], 'PLAYER_READY', 'Piloto notificou que está pronto via API');
         respond("✅ Você notificou que está pronto para a partida #$matchId!");
-        break;
 
     case '/resultado':
         $parts = explode(' ', $function);
         $matchId = intval($parts[1] ?? 0);
         if (!$matchId) respond("❌ Use: /resultado ID");
         respond("🏁 Use o bot do Telegram para informar resultados detalhados ou acione um Admin.");
-        break;
 
     case '/agendar':
         $parts = explode(' ', $function);
-        if (count($parts) < 2) {
-            respond("❌ Use: `/agendar ID`", ['state' => 'ERROR_MISSING_ID']);
-        }
-
         $matchId = intval($parts[1]);
         $matches = getJson(FILE_MATCHES);
         $match = null;
@@ -430,7 +431,7 @@ switch ($cmd) {
 
             // Definindo nome do oponente para a mensagem
             $opponentId = ($p1Id == $currentPilot['id']) ? $p2Id : $p1Id;
-            $opponentName = getPilotDisplayName(getPilotById($opponentId));
+            $opponentName = getPilotDisplayNameByNick(getPilotById($opponentId));
             $responseData['opponent_name'] = $opponentName;
             $responseData['proposed_date'] = $dt;
 
@@ -450,9 +451,7 @@ switch ($cmd) {
         }
 
         respond($msg, $responseData);
-        break;
 
     default:
         respond("❓ Comando não reconhecido ou não suportado via API.");
-        break;
 }

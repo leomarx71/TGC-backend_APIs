@@ -106,6 +106,33 @@ A API suporta a maioria dos comandos de texto do bot. O campo `function` ignora 
 
 *Nota: Comandos interativos como `/agendar` e fluxos complexos de `/resultado` devem ser realizados preferencialmente via interface do Telegram, mas a API fornece feedback adequado.*
 
+### Fluxo de Agendamento (`/agendar`)
+
+O comando `/agendar ID` na API retorna um campo `state` dentro do objeto `data`. Este estado deve ser utilizado pela aplicação cliente para decidir qual interface ou ação apresentar ao usuário.
+
+| Estado (`state`) | Descrição | Próxima Ação Esperada |
+| :--- | :--- | :--- |
+| `REQUIRE_PROPOSAL` | Nenhuma proposta ativa ou última recusada. | Usuário deve enviar uma data/hora (Ex: `25/07 19:00`). |
+| `WAITING_OPPONENT` | Proposta feita pelo usuário atual, aguardando oponente. | Aguardar ou enviar nova data para alterar a proposta. |
+| `REQUIRE_DECISION_PROPOSAL` | Proposta recebida do oponente, aguardando decisão. | Usuário deve escolher: [1] Confirmar, [2] Contra-proposta ou [3] Recusar. |
+| `CONFIRMED_CAN_EDIT` | Agendamento já confirmado pelas duas partes. | Nenhuma ação necessária, mas permite enviar nova data para reagendar. |
+| `ERROR_MISSING_ID` | ID da partida não foi fornecido no comando. | Fornecer o ID (Ex: `/agendar 123`). |
+| `ERROR_NOT_FOUND` | Partida com o ID informado não existe. | Verificar o ID informado. |
+| `ERROR_COMPUTER_MATCH` | Partida de Pole Position (contra o computador). | Não requer agendamento. |
+| `ERROR_NOT_OWNER` | O piloto autenticado não faz parte desta partida. | Verificar se o `pilotID` está correto. |
+
+#### Exemplo de Resposta (JSON):
+```json
+{
+  "ok": true,
+  "response": "📅 *Agendamento #123*\n\nNenhuma proposta ativa...",
+  "data": {
+    "match_id": 123,
+    "state": "REQUIRE_PROPOSAL"
+  }
+}
+```
+
 ---
 
 ## Saída (Chamadas para o Telegram)
