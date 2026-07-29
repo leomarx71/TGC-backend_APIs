@@ -186,6 +186,8 @@ if (!$input || !isset($input['message']['from']['pilotID']) || !isset($input['me
 $pilotID = $input['message']['from']['pilotID'];
 $pilotName = $input['message']['from']['pilotName'];
 $function = trim($input['message']['function']);
+$bookDate = $input['message']['bookDate'] ?? null;
+$bookTime = $input['message']['bookTime'] ?? null;
 
 // Mock do sendMessage para coletar a resposta em JSON limpo e formatado para WhatsApp
 function respond($text, $data = null) {
@@ -250,6 +252,14 @@ switch ($cmd) {
         respond($msg);
 
     case '/inscrever':
+        // Comando enviado em grupo
+        if ($pilotID == 351935525827) {
+            respond(
+                "❌ Este comando não pode ser utilizado em grupos.\n\n" .
+                "Envie uma mensagem privada para o TopGearTGCBot +351935525827 e execute o comando por lá.",
+                []
+            );
+        }
         $pilots = getJson(FILE_PILOTS);
         foreach ($pilots as $p) { if ($p['telegram_id'] == $pilotID) respond("Você já está inscrito."); }
         $newPilot = [
@@ -265,6 +275,14 @@ switch ($cmd) {
         respond("🏁 *Inscrição Realizada!*\n\nBem-vindo! Use /meuNick NovoNome para alterar seu nick.");
 
     case '/meunick':
+        // Comando enviado em grupo
+        if ($pilotID == 351935525827) {
+            respond(
+                "❌ Este comando não pode ser utilizado em grupos.\n\n" .
+                "Envie uma mensagem privada para o TopGearTGCBot +351935525827 e execute o comando por lá.",
+                []
+            );
+        }
         $args = trim(substr($function, 8));
         if (empty($args)) {
             $nick = getPilotDisplayNameByNick($currentPilot);
@@ -288,35 +306,59 @@ switch ($cmd) {
     case '/partidas':
         $matches = getJson(FILE_MATCHES);
         $pilots = getJson(FILE_PILOTS);
+
+        // Comando enviado em grupo
+        if ($pilotID == 351935525827) {
+            respond(
+                "❌ Este comando não pode ser utilizado em grupos.\n\n" .
+                "Envie uma mensagem privada para o TopGearTGCBot +351935525827 e execute o comando por lá.",
+                []
+            );
+        }
+
         $myMatches = array_filter($matches, function($m) use ($currentPilot) {
             return ($m['player_1_id'] == $currentPilot['id'] || $m['player_2_id'] == $currentPilot['id'])
                 && in_array($m['status'], ['PENDENTE', 'AGENDADO']);
         });
-        if (empty($myMatches)) respond("Sem partidas pendentes.", []);
+
+        if (empty($myMatches)) {
+            respond("Sem partidas pendentes.", []);
+        }
 
         $msg = "";
-        $matchDataList = [];
+        //$matchDataList = [];
+        $lastKey = array_key_last($myMatches);
 
-        foreach ($myMatches as $m) {
+        foreach ($myMatches as $key => $m) {
             $p1 = getPilotById($m['player_1_id'], $pilots);
             $p2 = getPilotById($m['player_2_id'], $pilots);
             $p1Name = getPilotDisplayNameByNick($p1);
             $p2Name = getPilotDisplayNameByNick($p2);
             $sched = getMatchSchedule($m['id']);
             $status = $sched ? "📌 Status: {$sched['status']}" : "⚠️ Aguardando Agendamento";
+            $prazo = date('d/m \à\s H:i', strtotime($m['deadline']));
+            $local = formatLocal($m['local_track'] ?? null);
+            $titulo = "{$m['tournament']} - {$m['phase']}";
+            if ($m['group_name'] !== $m['phase'] && $m['phase'] == 'Fase de Grupos') $titulo .= " - {$m['group_name']}";
 
-            $msg .= "🆔 *Partida #{$m['id']}*\n👤 {$p1Name} vs {$p2Name}\n🏆 {$m['tournament']}\n{$status}\n\n";
+            $msg .= "🆔 *Partida #{$m['id']}*\n👤 {$p1Name} vs {$p2Name} 👤\n🏆 {$titulo}\n⏳ Prazo Final: {$prazo}\n📌 Status: {$status}\n🛣 {$local}\n\n";
+            $msg .= "Use */agendar ID* ou */play ID* para gerenciar.\nPara informar vencedor: */resultado ID*\n\n";
 
+            if ($key !== $lastKey) {
+                $msg .= "\n[NEXT]\n";
+            }
             // Adicionando os dados estruturados no response caso o bot Node precise
+            /*
             $matchDataList[] = [
                 'id' => $m['id'],
                 'p1_name' => $p1Name,
                 'p2_name' => $p2Name,
                 'tournament' => $m['tournament'],
                 'schedule_status' => $sched ? $sched['status'] : 'PENDENTE'
-            ];
+            ];*/
         }
-        respond(trim($msg), $matchDataList);
+        //respond(trim($msg), $matchDataList);
+        respond(trim($msg));
 
     case '/usernumber':
         $pilots = getJson(FILE_PILOTS);
@@ -420,9 +462,10 @@ switch ($cmd) {
             if ($sched && $sched['status'] == 'RECUSADO') {
                 $msg = "📅 *Agendamento #$matchId*\n\nA última proposta foi recusada.\n\nSugira um novo horário. Responda esta mensagem com a data e hora desejada (Ex: *25/07 19:00*).";
             } else {
-                $msg = "📅 *Agendamento #$matchId*\n\nNenhuma proposta ativa no momento.\n\nPara sugerir um horário, responda esta mensagem com a data e hora (Ex: *25/07 19:00*).";
+                $msg = "📅 *Agendamento #$matchId*\n\nNenhuma proposta ativa no momento.\n\nResponda as próximas mensagens com sua disponibilidade.";
             }
             $responseData['state'] = 'REQUIRE_PROPOSAL';
+            $prazo = date('d/m H:i', strtotime($match['deadline']));
 
         } else {
             $dt = date('d/m H:i', strtotime($sched['data_hora']));
@@ -451,6 +494,94 @@ switch ($cmd) {
         }
 
         respond($msg, $responseData);
+    case '/proposal':
+        $parts = explode(' ', $function);
+        $matchId = intval($parts[1] ?? 0);
+
+        if (!$matchId || empty($bookDate) || empty($bookTime)) {
+            respond("❌ Falta de parâmetros. Envie data e hora corretos.");
+        }
+
+        $matches = getJson(FILE_MATCHES);
+        $match = null;
+        foreach ($matches as $m) if ($m['id'] == $matchId) { $match = $m; break; }
+
+        if (!$match) respond("❌ Partida #$matchId não encontrada.");
+
+        // Ajuste de Data
+        $currentYear = date('Y');
+        // Tenta criar data a partir de DD/MM
+        $dateObj = DateTime::createFromFormat('d/m/Y', "$bookDate/$currentYear");
+        if (!$dateObj) respond("❌ Formato de data não compreendido. Use o formato *DD/MM*.");
+
+        // Ajuste de Hora
+        $timeObj = DateTime::createFromFormat('H:i', $bookTime);
+        if (!$timeObj) respond("❌ Formato de hora não compreendido. Use o formato *HH:MM*.");
+
+        // Validação de Prazo Final (Deadline)
+        $proposedTimestamp = strtotime($dateObj->format('Y-m-d') . ' ' . $timeObj->format('H:i:s'));
+        $deadlineTimestamp = strtotime($match['deadline']);
+
+        if ($proposedTimestamp > $deadlineTimestamp) {
+            $limiteF = date('d/m/Y \à\s H:i', $deadlineTimestamp);
+            respond("❌ *Atenção!* A data proposta ultrapassa o prazo final da partida, que é: *$limiteF*.\n\nPor favor, reinicie o processo com */agendar $ID* e tente novamente com uma data válida.");
+        }
+
+        // Formatações solicitadas (MM/DD/YYYY e 12h AM/PM)
+        $formattedDate = $dateObj->format('m/d/Y');
+        $formattedTime = $timeObj->format('h:i A');
+        $tournament = $match['tournament'] ?? 'Torneio Desconhecido';
+
+        $msg = "📝 *Resumo da Proposta (Rascunho)*\n\n";
+        $msg .= "🏆 Torneio: {$tournament}\n";
+        $msg .= "🆔 Partida: {$matchId}\n";
+        $msg .= "📅 Data: {$formattedDate}\n";
+        $msg .= "⏰ Hora: {$formattedTime}\n\n";
+        $msg .= "⏳ *Lembrete:* A janela do seu jogo abrirá 30 minutos ANTES e fechará 30 minutos DEPOIS deste horário escolhido.\n\n";
+        $msg .= "Para confirmar e notificar seu adversário, responda agora com a palavra *OK*.";
+
+        // Retorna o State para o Javascript saber que pode pedir o OK
+        respond($msg, [
+            'state' => 'REQUIRE_PROPOSAL_CONFIRM',
+            'match_id' => $matchId
+        ]);
+
+    case '/proposal_confirm':
+        $parts = explode(' ', $function);
+        $matchId = intval($parts[1] ?? 0);
+
+        $currentYear = date('Y');
+        $dateObj = DateTime::createFromFormat('d/m/Y H:i', "$bookDate/$currentYear $bookTime");
+        if (!$dateObj) respond("❌ Erro interno ao processar a data.");
+
+        $dbFormattedDate = $dateObj->format('Y-m-d H:i:s'); // Padrão pro BD
+
+        // Salvar em schedules.json
+        $schedules = getJson(FILE_SCHEDULES);
+        $existingIndex = -1;
+        foreach ($schedules as $index => $s) {
+            if ($s['match_id'] == $matchId) { $existingIndex = $index; break; }
+        }
+
+        $newSchedule = [
+            'match_id' => $matchId,
+            'data_hora' => $dbFormattedDate,
+            'status' => 'PROPOSTO',
+            'proposed_by_pilot_id' => $currentPilot['id'],
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+
+        if ($existingIndex >= 0) {
+            $schedules[$existingIndex] = $newSchedule;
+        } else {
+            $schedules[] = $newSchedule;
+        }
+        saveJson(FILE_SCHEDULES, $schedules);
+
+        // Salvar Audit
+        saveAudit($matchId, $currentPilot['id'], 'NEW_PROPOSAL', "Piloto enviou nova proposta para {$dateObj->format('d/m/Y H:i')} via WhatsApp.");
+
+        respond("✅ *Sucesso!* Sua proposta foi salva.\n\nO seu oponente será notificado no grupo de agendamentos. Você será avisado quando ele responder.");
 
     default:
         respond("❓ Comando não reconhecido ou não suportado via API.");
