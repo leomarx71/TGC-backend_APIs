@@ -976,7 +976,7 @@ if (is_array($matches)) {
         <!-- FORMULÁRIO DE GERAÇÃO -->
         <form method="POST" class="bg-white shadow-xl rounded-lg overflow-hidden mb-10 border border-gray-200">
             <div class="bg-indigo-50 px-6 py-4 border-b border-indigo-100 flex justify-between items-center">
-                <h2 class="text-lg font-bold text-indigo-900">⚙️ Gerador de Partidas</h2>
+                <h2 class="text-lg font-bold text-indigo-900">⚙️ Gerador de Partidas WhatsApp</h2>
                 <span class="text-xs text-indigo-400 uppercase font-bold tracking-widest">Configuração</span>
             </div>
             

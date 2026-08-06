@@ -524,7 +524,7 @@ switch ($cmd) {
 
         if ($proposedTimestamp > $deadlineTimestamp) {
             $limiteF = date('d/m/Y \à\s H:i', $deadlineTimestamp);
-            respond("❌ *Atenção!* A data proposta ultrapassa o prazo final da partida, que é: *$limiteF*.\n\nPor favor, reinicie o processo com */agendar $ID* e tente novamente com uma data válida.");
+            respond("❌ *Atenção!* A data proposta ultrapassa o prazo final da partida, que é: *$limiteF*.\n\nPor favor, reinicie o processo com */agendar $matchId* e tente novamente com uma data válida.");
         }
 
         // Formatações solicitadas (MM/DD/YYYY e 12h AM/PM)
@@ -532,7 +532,7 @@ switch ($cmd) {
         $formattedTime = $timeObj->format('h:i A');
         $tournament = $match['tournament'] ?? 'Torneio Desconhecido';
 
-        $msg = "📝 *Resumo da Proposta (Rascunho)*\n\n";
+        $msg = "📝 *Resumo da Proposta*\n\n";
         $msg .= "🏆 Torneio: {$tournament}\n";
         $msg .= "🆔 Partida: {$matchId}\n";
         $msg .= "📅 Data: {$formattedDate}\n";
@@ -540,11 +540,52 @@ switch ($cmd) {
         $msg .= "⏳ *Lembrete:* A janela do seu jogo abrirá 30 minutos ANTES e fechará 30 minutos DEPOIS deste horário escolhido.\n\n";
         $msg .= "Para confirmar e notificar seu adversário, responda agora com a palavra *OK*.";
 
+        // --- SALVAMENTO PREVENTIVO (Solicitado pelo usuário) ---
+        $dbFormattedDate = $dateObj->format('Y-m-d') . ' ' . $timeObj->format('H:i:s');
+
+        // 1. Atualizar schedules.json
+        $schedules = getJson(FILE_SCHEDULES);
+        $existingIndex = -1;
+        foreach ($schedules as $idx => $s) {
+            if ($s['match_id'] == $matchId) { $existingIndex = $idx; break; }
+        }
+
+        $newSchedule = [
+            'match_id' => $matchId,
+            'data_hora' => $dbFormattedDate,
+            'status' => 'PROPOSTO',
+            'proposed_by_pilot_id' => $currentPilot['id'],
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+
+        if ($existingIndex >= 0) {
+            $newSchedule['id'] = $schedules[$existingIndex]['id'] ?? getNextId($schedules);
+            $schedules[$existingIndex] = $newSchedule;
+        } else {
+            $newSchedule['id'] = getNextId($schedules);
+            $schedules[] = $newSchedule;
+        }
+        saveJson(FILE_SCHEDULES, $schedules);
+
+        // 2. Atualizar matches.json
+        $allMatches = getJson(FILE_MATCHES);
+        foreach ($allMatches as &$m) {
+            if ($m['id'] == $matchId) {
+                $m['status'] = 'PROPOSTO';
+                break;
+            }
+        }
+        saveJson(FILE_MATCHES, $allMatches);
+
+        // 3. Auditoria
+        saveAudit($matchId, $currentPilot['id'], 'NEW_PROPOSAL_INIT', "Piloto iniciou proposta para $dbFormattedDate. Aguardando confirmação OK.");
+
         // Retorna o State para o Javascript saber que pode pedir o OK
         respond($msg, [
             'state' => 'REQUIRE_PROPOSAL_CONFIRM',
             'match_id' => $matchId
         ]);
+        break;
 
     case '/proposal_confirm':
         $parts = explode(' ', $function);
@@ -582,6 +623,7 @@ switch ($cmd) {
         saveAudit($matchId, $currentPilot['id'], 'NEW_PROPOSAL', "Piloto enviou nova proposta para {$dateObj->format('d/m/Y H:i')} via WhatsApp.");
 
         respond("✅ *Sucesso!* Sua proposta foi salva.\n\nO seu oponente será notificado no grupo de agendamentos. Você será avisado quando ele responder.");
+        break;
 
     default:
         respond("❓ Comando não reconhecido ou não suportado via API.");
