@@ -399,12 +399,16 @@ switch ($cmd) {
             respond("❌ Você não participa desta partida.");
         }
         $sched = getMatchSchedule($matchId);
-        if (!$sched || $sched['status'] !== 'CONFIRMADO') respond("⚠️ Partida não está confirmada para hoje.");
 
         $now = time();
         $dtTimestamp = strtotime($sched['data_hora']);
         if ($now < ($dtTimestamp - 1800)) respond("⏳ Muito cedo. A janela abre 30min antes do horário.");
-        if ($now > ($dtTimestamp + 1800)) respond("❌ Horário expirado.");
+        if ($now > ($dtTimestamp + 1800)) respond("⏳ Muito tarde. ❌ Horário do play expirado.");
+
+        if (!$sched || $sched['status'] != 'CONFIRMADO') {
+            saveAudit($matchId, $currentPilot['id'], 'JOGADOR_PRONTO', 'Piloto compareceu no horário proposto, mas o openente ainda não tinha confirmado');
+            respond("❌ O agendamento não havia sido confirmado para a partida #$matchId. \nRegistrei sua presença no horário proposto. \n\nUse /agendar ID para agendar novamente.");
+        }
 
         saveAudit($matchId, $currentPilot['id'], 'JOGADOR_PRONTO', 'Piloto notificou que está pronto via API');
         respond("✅ Você notificou que está pronto para a partida #$matchId!");
@@ -425,19 +429,19 @@ switch ($cmd) {
         }
 
         if (!$match) {
-            respond("❌ Partida não encontrada.", ['state' => 'ERRO_NAO_ENCONTRADO']);
+            respond("❌ Partida não encontrada. \n\nRevise o número com o */partidas*", ['state' => 'ERRO_NAO_ENCONTRADO']);
         }
 
         // Bloqueio Ritchie / Pole Position
         if (isComputerMatch($match)) {
-            respond("🚫 *Atenção:* Não é necessário fazer esse agendamento, pois é uma partida de Pole Position (contra o computador).", ['state' => 'ERRO_PARTIDA_COMPUTADOR']);
+            respond("🚫 *Atenção:* Não é necessário fazer esse agendamento, pois é uma partida de Pole Position (contra o Ritchie / Computador).", ['state' => 'ERRO_PARTIDA_COMPUTADOR']);
         }
 
         $p1Id = $match['player_1_id'] ?? null;
         $p2Id = $match['player_2_id'] ?? null;
 
         if ($p1Id != $currentPilot['id'] && $p2Id != $currentPilot['id']) {
-            respond("❌ Esta partida não é sua.", ['state' => 'ERRO_NAO_PERTENCE']);
+            respond("❌ Esta partida não é sua. \n\nRevise o número com o */partidas*", ['state' => 'ERRO_NAO_PERTENCE']);
         }
 
         $sched = getMatchSchedule($matchId);
@@ -449,7 +453,7 @@ switch ($cmd) {
 
         if (!$sched || $sched['status'] == 'RECUSADO') {
             if ($sched && $sched['status'] == 'RECUSADO') {
-                $msg = "📅 *Agendamento #$matchId*\n\nA última proposta foi recusada.\n\nSugira um novo horário. Responda esta mensagem com a data e hora desejada (Ex: *25/07 19:00*).";
+                $msg = "📅 *Agendamento #$matchId*\n\nA última proposta foi recusada.\n\nSugira um novo horário.";
             } else {
                 $msg = "📅 *Agendamento #$matchId*\n\nNenhuma proposta ativa no momento.\n\nResponda as próximas mensagens com sua disponibilidade.";
             }
@@ -469,7 +473,7 @@ switch ($cmd) {
 
             if ($sched['status'] == 'PROPOSTO') {
                 if ($isMeProposer) {
-                    $msg = "⏳ *Proposta Enviada*\n\nVocê sugeriu: *$dt*\nAguardando resposta de *$opponentName*.\n\nSe desejar alterar a proposta antes dele responder, digite a nova data (Ex: *25/07 19:00*).";
+                    $msg = "⏳ *Proposta Enviada*\n\nVocê sugeriu: *$dt*\nAguardando resposta de *$opponentName*.\n\nBasta *você* comparecer no horário agendado e enviar o */play ID*.";
                     $responseData['state'] = 'AGUARDANDO_OPONENTE';
                 } else {
                     $msg = "🔔 *Proposta Recebida*\n\n👤 *$opponentName* sugeriu o seguinte horário:\n📅 *$dt*\n\nO que deseja fazer? Responda com o *NÚMERO* da opção:\n\n[ *1* ] ✅ Confirmar\n[ *2* ] 🔄 Contra-proposta (Sugerir nova data)\n[ *3* ] 🚫 Apenas Recusar";
@@ -477,11 +481,10 @@ switch ($cmd) {
                 }
             }
             elseif ($sched['status'] == 'CONFIRMADO') {
-                $msg = "✅ *Agendamento Confirmado*\n\n📅 Data: *$dt*\n👤 Oponente: *$opponentName*\n\nDeseja alterar? Para reagendar, basta responder com a nova data (Ex: *25/07 19:00*).";
+                $msg = "✅ *Agendamento Confirmado*\n\n📅 Data: *$dt*\n👤 Oponente: *$opponentName*\n\nSeu agendamento já está confirmado. Basta *você* comparecer no horário agendado e enviar o */play ID*";
                 $responseData['state'] = 'CONFIRMADO_PODE_EDITAR';
             }
         }
-
         respond($msg, $responseData);
     case '/proposal':
         $parts = explode(' ', $function);
@@ -529,7 +532,6 @@ switch ($cmd) {
         $msg .= "⏳ *Lembrete:* A janela do seu jogo abrirá 30 minutos ANTES e fechará 30 minutos DEPOIS deste horário escolhido.\n\n";
         $msg .= "Para confirmar e notificar seu adversário, responda agora com a palavra *OK*.";
 
-        // --- SALVAMENTO PREVENTIVO (Solicitado pelo usuário) ---
         $dbFormattedDate = $dateObj->format('Y-m-d') . ' ' . $timeObj->format('H:i:s');
 
         // 1. Atualizar schedules.json
@@ -567,11 +569,15 @@ switch ($cmd) {
         saveJson(FILE_MATCHES, $allMatches);
 
         // 3. Auditoria
-        saveAudit($matchId, $currentPilot['id'], 'INICIO_NOVA_PROPOSTA', "Piloto iniciou proposta para $dbFormattedDate. Aguardando confirmação OK.");
+        $p1Id = $match['player_1_id'] ?? null;
+        $p2Id = $match['player_2_id'] ?? null;
 
-        // Retorna o State para o Javascript saber que pode pedir o OK
+        $opponentId = ($p1Id == $currentPilot['id']) ? $p2Id : $p1Id;
+        $opponentName = getPilotDisplayNameByNick(getPilotById($opponentId));
+        saveAudit($matchId, $currentPilot['id'], 'PARTIDA_PROPOSTA', "Piloto realizou proposta para $dbFormattedDate. Aguardando confirmação do Oponente $opponentName.");
+
         respond($msg, [
-            'state' => 'REQUER_CONFIRMACAO_PROPOSTA',
+            'state' => 'AGUARDANDO_OPONENTE',
             'match_id' => $matchId
         ]);
         break;
