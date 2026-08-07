@@ -135,7 +135,115 @@ O comando `/agendar ID` na API retorna um campo `state` dentro do objeto `data`.
 
 ---
 
+# Documentação de Status do Fluxo
+
+Este documento descreve todos os status e estados utilizados pelo sistema de agendamento de partidas, incluindo o fluxo de partidas, agendamentos, respostas da API e ações de auditoria.
+
+---
+
+# 1. Status da Partida (`matches.json`)
+
+Os status da partida representam o estado geral da disputa dentro do campeonato.
+
+| Status | Descrição |
+|---------|-----------|
+| `PENDENTE` | A partida foi criada pelo administrador, mas ainda não existe nenhum agendamento iniciado entre os jogadores. |
+| `PROPOSTO` | Um dos jogadores enviou uma proposta de data e horário, porém ela ainda depende da aprovação do adversário. |
+| `AGENDADO` | Os dois jogadores concordaram com a proposta e a partida possui data e horário oficialmente marcados. |
+| `CONCLUIDO` | A partida foi encerrada pelo administrador, independentemente do resultado (vitória, empate ou W.O.). |
+
+---
+
+# 2. Status do Agendamento (`schedules.json`)
+
+Os status do agendamento representam apenas o processo de negociação entre os jogadores.
+
+| Status | Descrição |
+|---------|-----------|
+| `PROPOSTO` | Existe uma proposta de data e horário aguardando resposta do adversário. |
+| `CONFIRMADO` | O adversário aceitou a proposta. Neste momento a partida passa para o status `AGENDADO`. |
+| `RECUSADO` | O adversário recusou a proposta. Um novo agendamento deverá ser realizado. |
+| `PARTIDA_FINALIZADA` | Definido pelo painel administrativo após o registro oficial do resultado da partida. |
+| `RESULTADO_PROPOSTO` | Utilizado pelo bot do Telegram durante o envio do resultado e da captura de tela (print). |
+| `RESULTADO_EM_DISPUTA` | Utilizado quando existe divergência entre os jogadores sobre o resultado informado. |
+
+---
+
+# 3. Estados Retornados pela API (`data.state`)
+
+Os estados retornados pela API informam à interface qual ação ou tela deve ser apresentada ao usuário.
+
+## Estados de erro
+
+| State | Descrição |
+|-------|-----------|
+| `ERRO_NAO_ENCONTRADO` | O `matchId` informado não existe. |
+| `ERRO_PARTIDA_COMPUTADOR` | Tentativa de agendar uma partida do tipo Pole Position (jogo solo). |
+| `ERRO_NAO_PERTENCE` | O usuário autenticado não participa da partida solicitada. |
+| `ERRO_NENHUMA_PROPOSTA` | Foi solicitada uma confirmação, porém não existe proposta cadastrada. |
+
+## Estados do fluxo
+
+| State | Descrição |
+|-------|-----------|
+| `REQUER_PROPOSTA` | Não existe agendamento. A interface deve solicitar ao usuário uma nova proposta de data e horário. |
+| `AGUARDANDO_OPONENTE` | A proposta foi enviada com sucesso. A interface deve apenas aguardar a resposta do adversário. |
+| `REQUER_DECISAO_PROPOSTA` | Existe uma proposta pendente. A interface deve oferecer as opções de **Aceitar**, **Recusar** ou **Contra-proposta**. |
+| `REQUER_CONFIRMACAO_PROPOSTA` | A interface deve solicitar uma confirmação ("OK") antes de enviar definitivamente a proposta. |
+| `CONFIRMADO_PODE_EDITAR` | A partida já está agendada, porém ainda é permitido solicitar um reagendamento. |
+| `CONFIRMADO` | Operação realizada com sucesso. |
+
+---
+
+# 4. Ações de Auditoria (`audit/log`)
+
+As ações de auditoria registram os eventos relevantes ocorridos durante o fluxo de agendamento.
+
+| Ação | Descrição |
+|------|-----------|
+| `INICIO_NOVA_PROPOSTA` | O jogador informou uma data e horário, mas a API ainda aguarda a confirmação final ("OK"). |
+| `PROPOSTO` | Uma proposta de agendamento foi enviada ao adversário. |
+| `REAGENDADO` | Foi realizada uma contra-proposta para um agendamento existente. |
+| `CONFIRMADO` | O agendamento foi aceito pelo adversário. |
+| `RECUSADO` | O agendamento foi recusado pelo adversário. |
+| `JOGADOR_PRONTO` | O jogador utilizou o comando `/play` para informar que está pronto para iniciar a partida, dentro da janela permitida de 30 minutos antes do horário agendado. |
+
+---
+
+# Resumo do Fluxo
+
+```text
+PENDENTE
+    │
+    ▼
+REQUER_PROPOSTA
+    │
+    ▼
+PROPOSTO
+    │
+    ├──────────────► RECUSADO
+    │                   │
+    │                   ▼
+    │             REQUER_PROPOSTA
+    │
+    ▼
+CONFIRMADO
+    │
+    ▼
+AGENDADO
+    │
+    ▼
+JOGADOR_PRONTO (/play)
+    │
+    ▼
+PARTIDA_FINALIZADA
+    │
+    ▼
+CONCLUIDO
+```
+
 ## Saída (Chamadas para o Telegram)
 O bot utiliza a função `apiRequest($method, $parameters)` para enviar dados de volta ao Telegram via `POST` para `https://api.telegram.org/bot[TOKEN]/[MÉTODO]`.
 - **Autenticação:** Token do Bot (`TELEGRAM_BOT_TOKEN`) na URL.
 - **Corpo:** JSON enviado via cURL.
+
