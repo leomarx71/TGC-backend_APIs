@@ -31,10 +31,11 @@ curl -X POST "https://seu-dominio.com/public/botMain.php" \
      -d '{
        "update_id": 123456789,
        "message": {
-         "message_id": 1,
-         "from": { "id": 12345, "first_name": "Piloto", "username": "piloto_tg" },
-         "chat": { "id": 12345, "type": "private" },
-         "text": "/ajuda"
+          "from": {
+            "pilotID": Number,
+            "pilotName": "Name"
+        },
+        "function": "/proposal_confirm 3"
        }
      }'
 ```
