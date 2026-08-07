@@ -318,7 +318,7 @@ switch ($cmd) {
 
         $myMatches = array_filter($matches, function($m) use ($currentPilot) {
             return ($m['player_1_id'] == $currentPilot['id'] || $m['player_2_id'] == $currentPilot['id'])
-                && in_array($m['status'], ['PENDENTE', 'AGENDADO']);
+                && in_array($m['status'], ['PENDENTE', 'AGENDADO', 'PROPOSTO', 'CONFIRMADO']);
         });
 
         if (empty($myMatches)) {
@@ -326,7 +326,6 @@ switch ($cmd) {
         }
 
         $msg = "";
-        //$matchDataList = [];
         $lastKey = array_key_last($myMatches);
 
         foreach ($myMatches as $key => $m) {
@@ -347,17 +346,7 @@ switch ($cmd) {
             if ($key !== $lastKey) {
                 $msg .= "\n[NEXT]\n";
             }
-            // Adicionando os dados estruturados no response caso o bot Node precise
-            /*
-            $matchDataList[] = [
-                'id' => $m['id'],
-                'p1_name' => $p1Name,
-                'p2_name' => $p2Name,
-                'tournament' => $m['tournament'],
-                'schedule_status' => $sched ? $sched['status'] : 'PENDENTE'
-            ];*/
         }
-        //respond(trim($msg), $matchDataList);
         respond(trim($msg));
 
     case '/usernumber':
@@ -417,7 +406,7 @@ switch ($cmd) {
         if ($now < ($dtTimestamp - 1800)) respond("⏳ Muito cedo. A janela abre 30min antes do horário.");
         if ($now > ($dtTimestamp + 1800)) respond("❌ Horário expirado.");
 
-        saveAudit($matchId, $currentPilot['id'], 'PLAYER_READY', 'Piloto notificou que está pronto via API');
+        saveAudit($matchId, $currentPilot['id'], 'JOGADOR_PRONTO', 'Piloto notificou que está pronto via API');
         respond("✅ Você notificou que está pronto para a partida #$matchId!");
 
     case '/resultado':
@@ -436,19 +425,19 @@ switch ($cmd) {
         }
 
         if (!$match) {
-            respond("❌ Partida não encontrada.", ['state' => 'ERROR_NOT_FOUND']);
+            respond("❌ Partida não encontrada.", ['state' => 'ERRO_NAO_ENCONTRADO']);
         }
 
         // Bloqueio Ritchie / Pole Position
         if (isComputerMatch($match)) {
-            respond("🚫 *Atenção:* Não é necessário fazer esse agendamento, pois é uma partida de Pole Position (contra o computador).", ['state' => 'ERROR_COMPUTER_MATCH']);
+            respond("🚫 *Atenção:* Não é necessário fazer esse agendamento, pois é uma partida de Pole Position (contra o computador).", ['state' => 'ERRO_PARTIDA_COMPUTADOR']);
         }
 
         $p1Id = $match['player_1_id'] ?? null;
         $p2Id = $match['player_2_id'] ?? null;
 
         if ($p1Id != $currentPilot['id'] && $p2Id != $currentPilot['id']) {
-            respond("❌ Esta partida não é sua.", ['state' => 'ERROR_NOT_OWNER']);
+            respond("❌ Esta partida não é sua.", ['state' => 'ERRO_NAO_PERTENCE']);
         }
 
         $sched = getMatchSchedule($matchId);
@@ -464,7 +453,7 @@ switch ($cmd) {
             } else {
                 $msg = "📅 *Agendamento #$matchId*\n\nNenhuma proposta ativa no momento.\n\nResponda as próximas mensagens com sua disponibilidade.";
             }
-            $responseData['state'] = 'REQUIRE_PROPOSAL';
+            $responseData['state'] = 'REQUER_PROPOSTA';
             $prazo = date('d/m H:i', strtotime($match['deadline']));
 
         } else {
@@ -481,15 +470,15 @@ switch ($cmd) {
             if ($sched['status'] == 'PROPOSTO') {
                 if ($isMeProposer) {
                     $msg = "⏳ *Proposta Enviada*\n\nVocê sugeriu: *$dt*\nAguardando resposta de *$opponentName*.\n\nSe desejar alterar a proposta antes dele responder, digite a nova data (Ex: *25/07 19:00*).";
-                    $responseData['state'] = 'WAITING_OPPONENT';
+                    $responseData['state'] = 'AGUARDANDO_OPONENTE';
                 } else {
                     $msg = "🔔 *Proposta Recebida*\n\n👤 *$opponentName* sugeriu o seguinte horário:\n📅 *$dt*\n\nO que deseja fazer? Responda com o *NÚMERO* da opção:\n\n[ *1* ] ✅ Confirmar\n[ *2* ] 🔄 Contra-proposta (Sugerir nova data)\n[ *3* ] 🚫 Apenas Recusar";
-                    $responseData['state'] = 'REQUIRE_DECISION_PROPOSAL';
+                    $responseData['state'] = 'REQUER_DECISAO_PROPOSTA';
                 }
             }
             elseif ($sched['status'] == 'CONFIRMADO') {
                 $msg = "✅ *Agendamento Confirmado*\n\n📅 Data: *$dt*\n👤 Oponente: *$opponentName*\n\nDeseja alterar? Para reagendar, basta responder com a nova data (Ex: *25/07 19:00*).";
-                $responseData['state'] = 'CONFIRMED_CAN_EDIT';
+                $responseData['state'] = 'CONFIRMADO_PODE_EDITAR';
             }
         }
 
@@ -578,11 +567,11 @@ switch ($cmd) {
         saveJson(FILE_MATCHES, $allMatches);
 
         // 3. Auditoria
-        saveAudit($matchId, $currentPilot['id'], 'NEW_PROPOSAL_INIT', "Piloto iniciou proposta para $dbFormattedDate. Aguardando confirmação OK.");
+        saveAudit($matchId, $currentPilot['id'], 'INICIO_NOVA_PROPOSTA', "Piloto iniciou proposta para $dbFormattedDate. Aguardando confirmação OK.");
 
         // Retorna o State para o Javascript saber que pode pedir o OK
         respond($msg, [
-            'state' => 'REQUIRE_PROPOSAL_CONFIRM',
+            'state' => 'REQUER_CONFIRMACAO_PROPOSTA',
             'match_id' => $matchId
         ]);
         break;
@@ -591,38 +580,43 @@ switch ($cmd) {
         $parts = explode(' ', $function);
         $matchId = intval($parts[1] ?? 0);
 
-        $currentYear = date('Y');
-        $dateObj = DateTime::createFromFormat('d/m/Y H:i', "$bookDate/$currentYear $bookTime");
-        if (!$dateObj) respond("❌ Erro interno ao processar a data.");
+        if (!$matchId) {
+            respond("❌ Falta de parâmetros (ID da partida).");
+        }
 
-        $dbFormattedDate = $dateObj->format('Y-m-d H:i:s'); // Padrão pro BD
-
-        // Salvar em schedules.json
+        // 1. Atualizar schedules.json
         $schedules = getJson(FILE_SCHEDULES);
         $existingIndex = -1;
         foreach ($schedules as $index => $s) {
             if ($s['match_id'] == $matchId) { $existingIndex = $index; break; }
         }
 
-        $newSchedule = [
-            'match_id' => $matchId,
-            'data_hora' => $dbFormattedDate,
-            'status' => 'PROPOSTO',
-            'proposed_by_pilot_id' => $currentPilot['id'],
-            'created_at' => date('Y-m-d H:i:s')
-        ];
-
         if ($existingIndex >= 0) {
-            $schedules[$existingIndex] = $newSchedule;
+            // Se já existe, atualiza os dados preservando ID original e quem propôs
+            $schedules[$existingIndex]['status'] = 'CONFIRMADO';
+            $schedules[$existingIndex]['updated_at'] = date('Y-m-d H:i:s');
+            $schedules[$existingIndex]['action_by_pilot_id'] = $currentPilot['id'];
         } else {
-            $schedules[] = $newSchedule;
+            // Sem fallback de criação, apenas recusa e retorna erro.
+            respond("❌ Erro: Não existe nenhuma proposta ativa para ser confirmada.", ['state' => 'ERRO_NENHUMA_PROPOSTA']);
         }
+
         saveJson(FILE_SCHEDULES, $schedules);
 
-        // Salvar Audit
-        saveAudit($matchId, $currentPilot['id'], 'NEW_PROPOSAL', "Piloto enviou nova proposta para {$dateObj->format('d/m/Y H:i')} via WhatsApp.");
+        // 2. Atualizar matches.json (Status global da partida)
+        $allMatches = getJson(FILE_MATCHES);
+        foreach ($allMatches as &$m) {
+            if ($m['id'] == $matchId) {
+                $m['status'] = 'AGENDADO';
+                break;
+            }
+        }
+        saveJson(FILE_MATCHES, $allMatches);
 
-        respond("✅ *Sucesso!* Sua proposta foi salva.\n\nO seu oponente será notificado no grupo de agendamentos. Você será avisado quando ele responder.");
+        // 3. Salvar Auditoria
+        saveAudit($matchId, $currentPilot['id'], 'CONFIRMADO', "Piloto confirmou o agendamento via API.");
+
+        respond("✅ *Agendamento Confirmado!*\n\nA partida está oficialmente agendada. O seu oponente será notificado.\n\nNo dia do jogo, lembre-se de usar */play {$matchId}*.", ['state' => 'CONFIRMADO']);
         break;
 
     default:
