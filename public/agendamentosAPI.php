@@ -334,7 +334,7 @@ switch ($cmd) {
             $p1Name = getPilotDisplayNameByNick($p1);
             $p2Name = getPilotDisplayNameByNick($p2);
             $sched = getMatchSchedule($m['id']);
-            $status = $sched ? "📌 Status: {$sched['status']}" : "⚠️ Aguardando Agendamento";
+            $status = $sched ? "{$sched['status']}" : "⚠️ Aguardando Agendamento";
             $prazo = date('d/m \à\s H:i', strtotime($m['deadline']));
             $local = formatLocal($m['local_track'] ?? null);
             $titulo = "{$m['tournament']} - {$m['phase']}";
@@ -476,7 +476,7 @@ switch ($cmd) {
                     $msg = "⏳ *Proposta Enviada*\n\nVocê sugeriu: *$dt*\nAguardando resposta de *$opponentName*.\n\nBasta *você* comparecer no horário agendado e enviar o */play ID*.";
                     $responseData['state'] = 'AGUARDANDO_OPONENTE';
                 } else {
-                    $msg = "🔔 *Proposta Recebida*\n\n👤 *$opponentName* sugeriu o seguinte horário:\n📅 *$dt*\n\nO que deseja fazer? Responda com o *NÚMERO* da opção:\n\n[ *1* ] ✅ Confirmar\n[ *2* ] 🔄 Contra-proposta (Sugerir nova data)\n[ *3* ] 🚫 Apenas Recusar";
+                    $msg = "🔔 *Proposta Recebida*\n\n👤 *$opponentName* sugeriu o seguinte horário:\n📅 *$dt*";
                     $responseData['state'] = 'REQUER_DECISAO_PROPOSTA';
                 }
             }
