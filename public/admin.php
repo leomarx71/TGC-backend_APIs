@@ -1205,7 +1205,13 @@ if (is_array($matches)) {
                                             if ($sched['status'] == 'PARTIDA_FINALIZADA') {
                                                 $winId = $sched['result_winner_id'] ?? 0;
                                                 $winName = $winId ? getPilotNameDisplay($winId, $pilotsMap) : 'Admin';
-                                                if ($winId == 0) $winName = 'EMPATE';
+                                                if ($winId == 0) {
+                                                    $winName = 'EMPATE';
+                                                    $schedHtml = "<div class='flex flex-col items-start gap-1'>
+                                                                    <span class='bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs font-bold border border-emerald-200'>🏁 FINALIZADA</span>
+                                                                    <span class='text-xs font-bold text-emerald-600'>🏆 {$winName}</span>
+                                                                  </div>";
+                                                } elseif ($winId == -1) $winName = 'W.O. Duplo';
                                                 $schedHtml = "<div class='flex flex-col items-start gap-1'>
                                                                 <span class='bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs font-bold border border-emerald-200'>🏁 FINALIZADA</span>
                                                                 <span class='text-xs font-bold text-emerald-600'>🏆 {$winName}</span>
@@ -1233,14 +1239,17 @@ if (is_array($matches)) {
                                                                     <span class='text-xs font-mono'>{$dt}</span>
                                                                   </div>";
                                                 }
-                                            } elseif ($sched['status'] == 'RECUSADO') {
-                                                $schedHtml = "<span class='bg-red-50 text-red-400 px-2 py-0.5 rounded text-xs font-bold decoration-line-through border border-red-100'>RECUSADO</span>";
-                                            } else {
-                                                // PROPOSTO
+                                            } elseif ($sched['status'] == 'PROPOSTO') {
                                                 $schedHtml = "<div class='flex flex-col items-start gap-1'>
                                                                 <span class='bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold border border-blue-200'>📅 PROPOSTO</span>
                                                                 <span class='text-xs'>{$dt}</span>
                                                                 <span class='text-[9px] text-gray-500'>por {$quemPropos}</span>
+                                                              </div>";
+                                            } else {
+                                                // Padrão para qualquer outro status desconhecido
+                                                $schedHtml = "<div class='flex flex-col items-start gap-1'>
+                                                                <span class='bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold border border-blue-200'> Status Desconhecido</span>
+                                                                <span class='text-xs'>{$dt}</span>
                                                               </div>";
                                             }
                                         }

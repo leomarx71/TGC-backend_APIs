@@ -98,6 +98,14 @@ function getPilotByTgId($tgId) {
     return null;
 }
 
+function getTelegramIdByPilotTg($pilotId) {
+    $pilots = getJson(FILE_PILOTS);
+    foreach ($pilots as $p) {
+        if ($p['id'] == $pilotId) return $p['telegram_id'];
+    }
+    return null;
+}
+
 function getPilotById($id, $pilots = null) {
     if ($pilots === null) $pilots = getJson(FILE_PILOTS);
     foreach ($pilots as $p) {
@@ -391,28 +399,46 @@ switch ($cmd) {
         $parts = explode(' ', $function);
         $matchId = intval($parts[1] ?? 0);
         if (!$matchId) respond("❌ Use: /play ID");
+
         $matches = getJson(FILE_MATCHES);
         $match = null;
         foreach ($matches as $m) { if ($m['id'] == $matchId) { $match = $m; break; } }
         if (!$match) respond("❌ Partida #$matchId não encontrada.");
+
+        $responseData = [
+            'match_id' => $matchId,
+            'state' => '',
+            'opponent_id' => getTelegramIdByPilotTg($match['player_2_id'])
+        ];
+
         if ($match['player_1_id'] != $currentPilot['id'] && $match['player_2_id'] != $currentPilot['id'] && !isAdmin($pilotID)) {
             respond("❌ Você não participa desta partida.");
         }
         $sched = getMatchSchedule($matchId);
 
-        $now = time();
-        $dtTimestamp = strtotime($sched['data_hora']);
-        if ($now < ($dtTimestamp - 1800)) respond("⏳ Muito cedo. A janela abre 30min antes do horário.");
-        if ($now > ($dtTimestamp + 1800)) respond("⏳ Muito tarde. ❌ Horário do play expirado.");
+        if (!$sched) respond("❌ Não há agendamentos propostos ou confirmados para a partida #$matchId.\n\nUse /agendar ID para agendar.");
 
-        if (!$sched || $sched['status'] != 'CONFIRMADO') {
-            saveAudit($matchId, $currentPilot['id'], 'JOGADOR_PRONTO', 'Piloto compareceu no horário proposto, mas o openente ainda não tinha confirmado');
-            respond("❌ O agendamento não havia sido confirmado para a partida #$matchId. \nRegistrei sua presença no horário proposto. \n\nUse /agendar ID para agendar novamente.");
+        if ($sched['status'] == 'CONFIRMADO') {
+            $now = time();
+            $bookDateTime = $sched['data_hora'];
+            $dtTimestamp = strtotime($sched['data_hora']);
+            if ($now < ($dtTimestamp - 1800)) respond("⏳ Muito cedo.\nPartida está agendada para $bookDateTime\n\nA janela de play abre 30min antes do horário.");
+            else if ($now > ($dtTimestamp + 1800)) {
+                saveAudit($matchId, $currentPilot['id'], 'JOGADOR_ATRASADO', 'Piloto tentou notificar disponibilidade após o horário agendado');
+                $responseData['state'] = 'JOGADOR_ATRASADO';
+                respond("❌ Oops, Muito tarde.\n⏳ Horário do play expirado.\n\nUse /agendar ID para agendar novamente.",$responseData);
+            } else {
+                saveAudit($matchId, $currentPilot['id'], 'JOGADOR_PRONTO', 'Piloto compareceu corretamente no horário proposto');
+                $responseData['state'] = 'JOGADOR_PRONTO';
+                respond("✅ Você chegou no horário! Notificando o oponente que você está pronto para a partida #$matchId!",$responseData);
+            }
         }
 
-        saveAudit($matchId, $currentPilot['id'], 'JOGADOR_PRONTO', 'Piloto notificou que está pronto via API');
-        respond("✅ Você notificou que está pronto para a partida #$matchId!");
-
+        if ($sched['status'] == 'PROPOSTO') {
+            $responseData['state'] = 'JOGADOR_PRONTO_SEM_AGENDAMENTO';
+            saveAudit($matchId, $currentPilot['id'], 'JOGADOR_PRONTO_SEM_AGENDAMENTO', 'Piloto compareceu no horário proposto, mas o openente ainda não tinha confirmado');
+            respond("❌ O agendamento não havia sido confirmado pelo seu oponente para a partida #$matchId. \nRegistrei sua presença e disponibilidade no horário proposto. \n\nUse */agendar ID* para agendar novamente.");
+        }
     case '/resultado':
         $parts = explode(' ', $function);
         $matchId = intval($parts[1] ?? 0);
@@ -448,15 +474,12 @@ switch ($cmd) {
         $msg = "";
         $responseData = [
             'match_id' => $matchId,
-            'state' => ''
+            'state' => '',
+            'opponent_id' => getTelegramIdByPilotTg($match['player_2_id'])
         ];
 
-        if (!$sched || $sched['status'] == 'RECUSADO') {
-            if ($sched && $sched['status'] == 'RECUSADO') {
-                $msg = "📅 *Agendamento #$matchId*\n\nA última proposta foi recusada.\n\nSugira um novo horário.";
-            } else {
-                $msg = "📅 *Agendamento #$matchId*\n\nNenhuma proposta ativa no momento.\n\nResponda as próximas mensagens com sua disponibilidade.";
-            }
+        if (!$sched) {
+            $msg = "📅 *Agendamento #$matchId*\n\nNenhuma proposta ativa no momento.\n\nResponda as próximas mensagens com sua disponibilidade.";
             $responseData['state'] = 'REQUER_PROPOSTA';
             $prazo = date('d/m H:i', strtotime($match['deadline']));
 
