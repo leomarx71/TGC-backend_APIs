@@ -113,9 +113,9 @@ O comando `/agendar ID` na API retorna um campo `state` dentro do objeto `data`.
 
 | Estado (`state`) | Descrição | Próxima Ação Esperada |
 | :--- | :--- | :--- |
-| `REQUIRE_PROPOSAL` | Nenhuma proposta ativa ou última recusada. | Usuário deve enviar uma data/hora (Ex: `25/07 19:00`). |
+| `REQUIRE_PROPOSAL` | Nenhuma proposta ativa. | Usuário deve enviar uma data/hora (Ex: `25/07 19:00`). |
 | `WAITING_OPPONENT` | Proposta feita pelo usuário atual, aguardando oponente. | Aguardar ou enviar nova data para alterar a proposta. |
-| `REQUIRE_DECISION_PROPOSAL` | Proposta recebida do oponente, aguardando decisão. | Usuário deve escolher: [1] Confirmar, [2] Contra-proposta ou [3] Recusar. |
+| `REQUIRE_DECISION_PROPOSAL` | Proposta recebida do oponente, aguardando decisão. | Usuário deve escolher: [1] Confirmar ou [2] Contra-proposta. |
 | `CONFIRMED_CAN_EDIT` | Agendamento já confirmado pelas duas partes. | Nenhuma ação necessária, mas permite enviar nova data para reagendar. |
 | `ERROR_MISSING_ID` | ID da partida não foi fornecido no comando. | Fornecer o ID (Ex: `/agendar 123`). |
 | `ERROR_NOT_FOUND` | Partida com o ID informado não existe. | Verificar o ID informado. |
@@ -163,7 +163,6 @@ Os status do agendamento representam apenas o processo de negociação entre os 
 |---------|-----------|
 | `PROPOSTO` | Existe uma proposta de data e horário aguardando resposta do adversário. |
 | `CONFIRMADO` | O adversário aceitou a proposta. Neste momento a partida passa para o status `AGENDADO`. |
-| `RECUSADO` | O adversário recusou a proposta. Um novo agendamento deverá ser realizado. |
 | `PARTIDA_FINALIZADA` | Definido pelo painel administrativo após o registro oficial do resultado da partida. |
 | `RESULTADO_PROPOSTO` | Utilizado pelo bot do Telegram durante o envio do resultado e da captura de tela (print). |
 | `RESULTADO_EM_DISPUTA` | Utilizado quando existe divergência entre os jogadores sobre o resultado informado. |
@@ -189,7 +188,7 @@ Os estados retornados pela API informam à interface qual ação ou tela deve se
 |-------|-----------|
 | `REQUER_PROPOSTA` | Não existe agendamento. A interface deve solicitar ao usuário uma nova proposta de data e horário. |
 | `AGUARDANDO_OPONENTE` | A proposta foi enviada com sucesso. A interface deve apenas aguardar a resposta do adversário. |
-| `REQUER_DECISAO_PROPOSTA` | Existe uma proposta pendente. A interface deve oferecer as opções de **Aceitar**, **Recusar** ou **Contra-proposta**. |
+| `REQUER_DECISAO_PROPOSTA` | Existe uma proposta pendente. A interface deve oferecer as opções de **Aceitar** ou **Contra-proposta**. |
 | `REQUER_CONFIRMACAO_PROPOSTA` | A interface deve solicitar uma confirmação ("OK") antes de enviar definitivamente a proposta. |
 | `CONFIRMADO_PODE_EDITAR` | A partida já está agendada, porém ainda é permitido solicitar um reagendamento. |
 | `CONFIRMADO` | Operação realizada com sucesso. |
@@ -206,7 +205,6 @@ As ações de auditoria registram os eventos relevantes ocorridos durante o flux
 | `PROPOSTO` | Uma proposta de agendamento foi enviada ao adversário. |
 | `REAGENDADO` | Foi realizada uma contra-proposta para um agendamento existente. |
 | `CONFIRMADO` | O agendamento foi aceito pelo adversário. |
-| `RECUSADO` | O agendamento foi recusado pelo adversário. |
 | `JOGADOR_PRONTO` | O jogador utilizou o comando `/play` para informar que está pronto para iniciar a partida, dentro da janela permitida de 30 minutos antes do horário agendado. |
 
 ---
@@ -221,11 +219,6 @@ REQUER_PROPOSTA
     │
     ▼
 PROPOSTO
-    │
-    ├──────────────► RECUSADO
-    │                   │
-    │                   ▼
-    │             REQUER_PROPOSTA
     │
     ▼
 CONFIRMADO
