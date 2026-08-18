@@ -734,6 +734,16 @@ switch ($cmd) {
             respond("❌ *Atenção!* A data proposta ultrapassa o prazo final da partida, que é: *$limiteF*.\n\nPor favor, reinicie o processo com */agendar $matchId* e tente novamente com uma data válida.");
         }
 
+        // Validação de antecedência mínima de 2 horas
+        $nowTimestamp = time();
+
+        if ($proposedTimestamp < ($nowTimestamp + 7200)) {
+            $minimoTimestamp = $nowTimestamp + 7200;
+            $minimoF = date('d/m/Y \à\s H:i', $minimoTimestamp);
+
+            respond("❌ *Atenção!* O horário proposto deve ser de pelo menos 2 horas a partir de agora.\n\nO primeiro horário permitido é: *$minimoF*.\n\nPor favor, reinicie o processo com */agendar $matchId* e tente novamente com uma data válida.");
+        }
+
         // Formatações solicitadas (MM/DD/YYYY e 12h AM/PM)
         $formattedDate = $dateObj->format('m/d/Y');
         $formattedTime = $timeObj->format('h:i A');
