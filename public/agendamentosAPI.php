@@ -646,6 +646,14 @@ switch ($cmd) {
             if ($m['id'] == $matchId) { $match = $m; break; }
         }
 
+        // Comando enviado em grupo
+        if ($pilotID == 351935525827) {
+            respond(
+                "❌ Este comando não pode ser utilizado em grupos.\n\n" .
+                "Envie uma mensagem privada para o TopGearTGCBot +351935525827 e execute o comando por lá.",
+                []
+            );
+        }
         $sched = getMatchSchedule($matchId);
         $msg = "";
         $responseData = [
@@ -701,6 +709,7 @@ switch ($cmd) {
             }
         }
         respond($msg, $responseData);
+
     case '/proposal':
         $parts = explode(' ', $function);
         $matchId = intval($parts[1] ?? 0);
@@ -729,9 +738,33 @@ switch ($cmd) {
         $proposedTimestamp = strtotime($dateObj->format('Y-m-d') . ' ' . $timeObj->format('H:i:s'));
         $deadlineTimestamp = strtotime($match['deadline']);
 
+        $dbFormattedDate = $dateObj->format('Y-m-d') . ' ' . $timeObj->format('H:i:s');
+
+        $p1Id = $match['player_1_id'] ;
+        $p2Id = $match['player_2_id'] ;
+        $opponent_id = null;
+
+        if ($p1Id == $currentPilot['id']) {
+            $opponent_id = getTelegramIdByPilotId($p2Id) ;
+            $nickname = getPilotDisplayNameByNick(getPilotById($p2Id));
+        } else if ($p2Id == $currentPilot['id']) {
+            $opponent_id = getTelegramIdByPilotId($p1Id) ;
+            $nickname = getPilotDisplayNameByNick(getPilotById($p1Id));
+        }
+
+        $responseData = [
+            'match_id' => $matchId,
+            'state' => '',
+            'nickname' => $nickname,
+            'opponent_id' => $opponent_id,
+            'data_hora' => $dbFormattedDate,
+            'tournament' => $match['tournament'],
+        ];
+
         if ($proposedTimestamp > $deadlineTimestamp) {
             $limiteF = date('d/m/Y \à\s H:i', $deadlineTimestamp);
-            respond("❌ *Atenção!* A data proposta ultrapassa o prazo final da partida, que é: *$limiteF*.\n\nPor favor, reinicie o processo com */agendar $matchId* e tente novamente com uma data válida.");
+            $responseData['state'] = 'FORA_DO_PRAZO';
+            respond("❌ Oops não foi possível finalizar\n\n*Atenção!* A data proposta ultrapassa o prazo final da partida, que é: *$limiteF*.\n\nPor favor, reinicie o processo com */agendar $matchId* e tente novamente com uma data válida.", $responseData);
         }
 
         // Validação de antecedência mínima de 2 horas
@@ -740,8 +773,8 @@ switch ($cmd) {
         if ($proposedTimestamp < ($nowTimestamp + 7200)) {
             $minimoTimestamp = $nowTimestamp + 7200;
             $minimoF = date('d/m/Y \à\s H:i', $minimoTimestamp);
-
-            respond("❌ *Atenção!* O horário proposto deve ser de pelo menos 2 horas a partir de agora.\n\nO primeiro horário permitido é: *$minimoF*.\n\nPor favor, reinicie o processo com */agendar $matchId* e tente novamente com uma data válida.");
+            $responseData['state'] = 'MENOS_DE_2_HORAS';
+            respond("❌ Oops não foi possível finalizar\n\n*Atenção!* O horário proposto deve ser de pelo menos 2 horas a partir de agora.\n\nO primeiro horário permitido é: *$minimoF*.\n\nPor favor, reinicie o processo com */agendar $matchId* e tente novamente com uma data válida.", $responseData);
         }
 
         // Formatações solicitadas (MM/DD/YYYY e 12h AM/PM)
@@ -749,15 +782,14 @@ switch ($cmd) {
         $formattedTime = $timeObj->format('h:i A');
         $tournament = $match['tournament'] ?? 'Torneio Desconhecido';
 
-        $msg = "📝 *Resumo da Proposta*\n\n";
+        $msg = "📨 Disponibilidade enviada com sucesso! Aguarde a confirmação do seu oponente.\n\n";
+        $msg .= "📝 *Resumo da Proposta*\n\n";
         $msg .= "🏆 Torneio: {$tournament}\n";
         $msg .= "🆔 Partida: {$matchId}\n";
         $msg .= "📅 Data: {$formattedDate}\n";
         $msg .= "⏰ Hora: {$formattedTime}\n\n";
         $msg .= "⏳ *Lembrete:* A janela do seu jogo abrirá 30 minutos ANTES e fechará 30 minutos DEPOIS deste horário escolhido.\n\n";
         $msg .= "Para confirmar e notificar seu adversário, responda agora com a palavra *OK*.";
-
-        $dbFormattedDate = $dateObj->format('Y-m-d') . ' ' . $timeObj->format('H:i:s');
 
         // 1. Atualizar schedules.json
         $schedules = getJson(FILE_SCHEDULES);
@@ -800,12 +832,10 @@ switch ($cmd) {
         $opponentId = ($p1Id == $currentPilot['id']) ? $p2Id : $p1Id;
         $opponentName = getPilotDisplayNameByNick(getPilotById($opponentId));
         saveAudit($matchId, $currentPilot['id'], 'PARTIDA_PROPOSTA', "Piloto realizou proposta para $dbFormattedDate. Aguardando confirmação do Oponente $opponentName.");
+        $responseData['state'] = 'AGUARDANDO_OPONENTE';
 
-        respond($msg, [
-            'state' => 'AGUARDANDO_OPONENTE',
-            'match_id' => $matchId
-        ]);
-        break;
+        respond($msg, $responseData);
+
     case '/proposal_confirm':
         $parts = explode(' ', $function);
         $matchId = intval($parts[1] ?? 0);
