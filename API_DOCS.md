@@ -60,9 +60,16 @@ Abaixo estão os comandos processados pelo `botMain.php`. Todos exigem que o usu
 | `/partidas` | `POST` | Lista as partidas pendentes do piloto. | `/partidas` |
 | `/agendar` | `POST` | Inicia o fluxo de agendamento de uma partida. | `/agendar 10` |
 | `/play` | `POST` | Notifica que o piloto está pronto para jogar. | `/play 10` |
-| `/resultado`| `POST` | Informa o vencedor de uma partida. | `/resultado 10` |
 | `/audit` | `POST` | Exibe o histórico de ações de uma partida específica. | `/audit 10` |
 | `/links` | `POST` | Exibe links importantes do campeonato. | `/links` |
+
+### Comandos de Administrador
+| Comando | Método | Descrição | Exemplo |
+| :--- | :--- | :--- | :--- |
+| `/resultado ID` | `POST` | Consulta os nicknames e `telegram_id` dos pilotos da partida. | `/resultado 10` |
+| `/resultado ID [nickname]` | `POST` | Define o piloto vencedor da partida. | `/resultado 10 Senna` |
+| `/resultado ID empate` | `POST` | Define o resultado da partida como Empate. | `/resultado 10 empate` |
+| `/resultado ID woduplo` | `POST` | Define o resultado da partida como W.O. Duplo. | `/resultado 10 woduplo` |
 
 ### Tratamento de Callback Queries (Botões Inline)
 O bot também processa interações de botões (`callback_query`), utilizados nos fluxos de agendamento:
@@ -102,10 +109,51 @@ A API suporta a maioria dos comandos de texto do bot. O campo `function` ignora 
 | `/partidas` | Retorna as partidas pendentes do piloto. |
 | `/meuNick` | Altera o nickname do piloto. |
 | `/play ID` | Notifica que o piloto está pronto para a partida. |
+| `/resultado ID` | (Admin) Consulta pilotos e define vencedor (`/resultado ID nick`), empate (`/resultado ID empate`) ou W.O. duplo (`/resultado ID woduplo`). |
 | `/audit ID` | Retorna o histórico da partida. |
 | `/ajuda`, `/links` | Retorna informações de ajuda e links úteis. |
 
-*Nota: Comandos interativos como `/agendar` e fluxos complexos de `/resultado` devem ser realizados preferencialmente via interface do Telegram, mas a API fornece feedback adequado.*
+*Nota: O comando `/resultado` é exclusivo para administradores. Pilotos comuns receberão erro ao tentar utilizá-lo.*
+
+### Fluxo de Resultado (`/resultado` - Exclusivo Administradores)
+
+O comando `/resultado` permite que os administradores consultem e definam oficialmente o resultado de qualquer partida.
+
+1. **Consulta de Dados dos Pilotos (`/resultado ID`)**:
+   - Retorna os nomes/nicknames de ambos os pilotos e seus respectivos `telegram_id`.
+   - Estado retornado: `REQUER_RESULTADO_ADMIN`.
+
+2. **Definição de Vencedor / Empate / W.O. Duplo**:
+   - `/resultado ID [nickname]`: Define o piloto correspondente como vencedor.
+   - `/resultado ID empate`: Define o resultado como Empate (`winner_id = 0`).
+   - `/resultado ID woduplo`: Define o resultado como W.O. Duplo (`winner_id = -1`).
+   - Estado retornado: `FINALIZADO_ADMIN`.
+
+3. **Tentativa de Execução por Piloto Não-Administrador**:
+   - Retorna mensagem de erro de negócio informando que apenas administradores podem executar.
+   - Estado retornado: `ERRO_APENAS_ADMIN`.
+
+#### Exemplo de Consulta de Resultado (JSON):
+```json
+{
+  "ok": true,
+  "response": "🏆 *Definir Resultado - Partida #10*...",
+  "data": {
+    "match_id": 10,
+    "player_1": {
+      "id": 1,
+      "name": "Senna",
+      "telegram_id": 1001
+    },
+    "player_2": {
+      "id": 2,
+      "name": "Prost",
+      "telegram_id": 2002
+    },
+    "state": "REQUER_RESULTADO_ADMIN"
+  }
+}
+```
 
 ### Fluxo de Agendamento (`/agendar`)
 
@@ -178,9 +226,12 @@ Os estados retornados pela API informam à interface qual ação ou tela deve se
 | State | Descrição |
 |-------|-----------|
 | `ERRO_NAO_ENCONTRADO` | O `matchId` informado não existe. |
-| `ERRO_PARTIDA_COMPUTADOR` | Tentativa de agendar uma partida do tipo Pole Position (jogo solo). |
+| `ERRO_PARTIDA_COMPUTADOR` | Tentativa de agendar ou registrar resultado para partida do tipo Pole Position (jogo solo). |
 | `ERRO_NAO_PERTENCE` | O usuário autenticado não participa da partida solicitada. |
 | `ERRO_NENHUMA_PROPOSTA` | Foi solicitada uma confirmação, porém não existe proposta cadastrada. |
+| `ERRO_APENAS_ADMIN` | Comando ou ação restrita exclusivamente a administradores. |
+| `ERRO_OPCAO_INVALIDA` | Opção ou nickname inválido ao registrar resultado. |
+| `ERRO_FALTA_ID` | ID da partida não informado no comando. |
 
 ## Estados do fluxo
 
@@ -192,6 +243,8 @@ Os estados retornados pela API informam à interface qual ação ou tela deve se
 | `REQUER_CONFIRMACAO_PROPOSTA` | A interface deve solicitar uma confirmação ("OK") antes de enviar definitivamente a proposta. |
 | `CONFIRMADO_PODE_EDITAR` | A partida já está agendada, porém ainda é permitido solicitar um reagendamento. |
 | `CONFIRMADO` | Operação realizada com sucesso. |
+| `REQUER_RESULTADO_ADMIN` | Consulta de partida para envio de resultado por administrador, aguardando definição de vencedor, empate ou W.O. duplo. |
+| `FINALIZADO_ADMIN` | Resultado oficialmente definido pelo administrador e partida finalizada. |
 
 ---
 
