@@ -411,6 +411,15 @@ switch ($cmd) {
         foreach ($matches as $m) { if ($m['id'] == $matchId) { $match = $m; break; } }
         if (!$match) respond("❌ Partida #$matchId não encontrada.");
 
+        // Comando enviado em grupo
+        if ($pilotID == 351935525827) {
+            respond(
+                "❌ Este comando não pode ser utilizado em grupos.\n\n" .
+                "Envie uma mensagem privada para o TopGearTGCBot +351935525827 e execute o comando por lá.",
+                []
+            );
+        }
+
         $p1Id = $match['player_1_id'] ;
         $p2Id = $match['player_2_id'] ;
         $opponent_id = null;
@@ -442,6 +451,8 @@ switch ($cmd) {
         $now = time();
         $dtTimestamp = strtotime($sched['data_hora']);
         $formattedTime = date('d/m H:i', $dtTimestamp);
+        $windowStartTime = date('H:i', $dtTimestamp - 1800);
+        $windowEndTime = date('H:i', $dtTimestamp + 1800);
         $responseData['data_hora'] = $formattedTime;
 
         // Primeiro verifica a janela de tempo, independentemente do status
@@ -452,19 +463,19 @@ switch ($cmd) {
         if ($now > ($dtTimestamp + 1800)) {
             saveAudit($matchId, $currentPilot['id'], 'JOGADOR_ATRASADO', 'Piloto tentou notificar disponibilidade após o horário agendado');
             $responseData['state'] = 'JOGADOR_ATRASADO';
-            respond("❌ Oops, Muito tarde.\n⏳ Horário do play expirado.\nA partida estava agendada para $formattedTime\n\nUse /agendar ID para agendar novamente.", $responseData);
+            respond("❌ Oops, Muito tarde.\n⏳ Horário do play expirado.\nA partida estava agendada para $formattedTime\n\nUse */agendar $matchId* para agendar novamente.", $responseData);
         }
 
         // Está dentro da janela de ±30 minutos. Agora verifica o status.
         if ($sched['status'] == 'CONFIRMADO') {
             saveAudit($matchId, $currentPilot['id'], 'JOGADOR_PRONTO', 'Piloto compareceu corretamente no horário proposto');
             $responseData['state'] = 'JOGADOR_PRONTO';
-            respond("✅ *Você chegou no horário!*\n\nNotificando o oponente que você está pronto para a partida\nFique disponível para a resposta dele até o fim do período da janela de agendamento. \n\nPartida: 🆔 #$matchId!\nData Agendada: $formattedTime ", $responseData);
+            respond("✅ *Você chegou no horário!*\n\nNotificando o oponente que você está pronto para a partida.\nFique disponível para a resposta dele até o fim do período da janela de agendamento.\n\nPartida: 🆔 #$matchId!\nData Agendada: $formattedTime\nJanela Válida: de $windowStartTime até $windowEndTime", $responseData);
         }
         if ($sched['status'] == 'PROPOSTO') {
             $responseData['state'] = 'JOGADOR_PRONTO_SEM_AGENDAMENTO';
             saveAudit($matchId, $currentPilot['id'], 'JOGADOR_PRONTO_SEM_AGENDAMENTO', 'Piloto compareceu no horário proposto, mas o oponente ainda não tinha confirmado');
-            respond("❌ O agendamento não havia sido confirmado pelo seu oponente para a partida #$matchId.\nRegistrei sua presença e disponibilidade no horário proposto.\n\nUse */agendar ID* para agendar novamente.", $responseData);
+            respond("❌ O agendamento não havia sido confirmado pelo seu oponente para a partida ID $matchId.\nRegistrei sua presença e disponibilidade no horário proposto.\n\nUse */agendar ID* para agendar novamente.", $responseData);
         }
 
         // Está dentro da janela, mas o status não permite /play
@@ -778,18 +789,18 @@ switch ($cmd) {
         }
 
         // Formatações solicitadas (MM/DD/YYYY e 12h AM/PM)
-        $formattedDate = $dateObj->format('m/d/Y');
-        $formattedTime = $timeObj->format('h:i A');
+        $formattedDate = $dateObj->format('d/m/Y');
+        $formattedTime = $timeObj->format('H:i');
         $tournament = $match['tournament'] ?? 'Torneio Desconhecido';
 
-        $msg = "📨 Disponibilidade enviada com sucesso! Aguarde a confirmação do seu oponente.\n\n";
+        $msg = "📨 Solicitação de agendamento enviada com sucesso!\nAguarde a confirmação do seu oponente.\n\n";
         $msg .= "📝 *Resumo da Proposta*\n\n";
         $msg .= "🏆 Torneio: {$tournament}\n";
         $msg .= "🆔 Partida: {$matchId}\n";
         $msg .= "📅 Data: {$formattedDate}\n";
         $msg .= "⏰ Hora: {$formattedTime}\n\n";
-        $msg .= "⏳ *Lembrete:* A janela do seu jogo abrirá 30 minutos ANTES e fechará 30 minutos DEPOIS deste horário escolhido.\n\n";
-        $msg .= "Para confirmar e notificar seu adversário, responda agora com a palavra *OK*.";
+        $msg .= "⏳ *Lembrete 1:* A janela do seu jogo abrirá 30 minutos ANTES e fechará 30 minutos DEPOIS deste horário escolhido.\n\n";
+        $msg .= "⏳ *Lembrete 2:* Mesmo que seu oponente não confirme a tempo, Você deve comparecer no seu horário proposto e enviar o */play $matchId* para registrar que você está disponível.\n\n";
 
         // 1. Atualizar schedules.json
         $schedules = getJson(FILE_SCHEDULES);
