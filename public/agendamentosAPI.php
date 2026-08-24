@@ -252,10 +252,12 @@ switch ($cmd) {
 
     case '/ajuda':
         $msg = "📚 *COMO AGENDAR SUAS PARTIDAS*\n\n";
-        $msg .= "*1. VER SUAS PARTIDAS:* " . "'/partidas'" . "\n";
+        $msg .= "*1. VER SUAS PARTIDAS:* '/partidas'" . "\n";
         $msg .= "*2. INICIAR AGENDAMENTO:* /agendar ID\n";
-        $msg .= "*3. NO DIA DO JOGO:* /play ID\n";
-        $msg .= "\nUse os comandos acima para gerenciar seus jogos.";
+        $msg .= "*3. NO DIA DO JOGO:* /play ID\n\n";
+        $msg .= "*Comandos para Admins*\n\n";
+        $msg .= "*4. Gerenciar o resultado da partida:* /resultado ID\n";
+        $msg .= "*5. Ver Auditoria da partida:* /audit ID\n";
         respond($msg);
 
     case '/ayuda':
@@ -263,6 +265,9 @@ switch ($cmd) {
         $msg .= "*1. VER SUS PARTIDOS:* " . "'/partidas'" . "\n";
         $msg .= "*2. INICIAR GESTIÓN:* /agendar ID\n";
         $msg .= "*3. EN EL DÍA DEL JUEGO:* /play ID";
+        $msg .= "*Comandos para Admins*\n\n";
+        $msg .= "*4. Gestión el resultado del partido:* /resultado ID\n";
+        $msg .= "*5. Ver auditoría del juego:* /audit ID\n";
         respond($msg);
 
     case '/inscrever':
@@ -540,14 +545,18 @@ switch ($cmd) {
                 'state' => 'REQUER_RESULTADO_ADMIN'
             ];
 
-            $msg = "🏆 *Definir Resultado - Partida #{$matchId}*\n\n";
-            $msg .= "👤 *Piloto 1:* {$nick1} (Telegram ID: `{$p1Tg}`)\n";
-            $msg .= "👤 *Piloto 2:* {$nick2} (Telegram ID: `{$p2Tg}`)\n\n";
-            $msg .= "Para registrar o resultado, envie um dos comandos:\n";
-            $msg .= "👉 */resultado {$matchId} {$nick1}* (Vitória de {$nick1})\n";
-            $msg .= "👉 */resultado {$matchId} {$nick2}* (Vitória de {$nick2})\n";
-            $msg .= "👉 */resultado {$matchId} empate* (Empate)\n";
-            $msg .= "👉 */resultado {$matchId} woduplo* (W.O. Duplo)";
+            $msg = "🏆 *Os pilotos dessa partida {$matchId} são:*\n\n";
+            $msg .= "👤 *Player 1 =* {$nick1}\n";
+            $msg .= "👤 *Player 2 =* {$nick2}\n\n";
+            $msg .= "Para registrar o resultado, envie um dos comandos a seguir:\n\n";
+            $msg .= "Se o resultado for Vitória de *{$nick1}*\n";
+            $msg .= "👉 /resultado {$matchId} {$nick1}\n";
+            $msg .= "Se o resultado for Vitória de *{$nick2}*\n";
+            $msg .= "👉 /resultado {$matchId} {$nick2}\n";
+            $msg .= "Se o resultado for *Empate*\n";
+            $msg .= "👉 /resultado {$matchId} empate\n";
+            $msg .= "Se o resultado for *W.O. Duplo*\n";
+            $msg .= "👉 /resultado {$matchId} woduplo";
 
             respond($msg, $responseData);
         }
@@ -594,10 +603,9 @@ switch ($cmd) {
         }
 
         if ($winnerId === null) {
-            respond("❌ Opção de resultado inválida.\n\nEnvie o nickname do vencedor ({$nick1} ou {$nick2}) ou 'empate' ou 'woduplo'.", ['state' => 'ERRO_OPCAO_INVALIDA']);
+            respond("❌ Opção de resultado inválida.\n\nEnvie exatamento o nickname do vencedor:\n({$nick1} ou {$nick2}) ou\n Empate ou W.O. Duplo", ['state' => 'ERRO_OPCAO_INVALIDA']);
         }
 
-        // Salvar em matches.json
         $allMatches = getJson(FILE_MATCHES);
         foreach ($allMatches as &$m) {
             if ($m['id'] == $matchId) {
@@ -608,7 +616,6 @@ switch ($cmd) {
         }
         saveJson(FILE_MATCHES, $allMatches);
 
-        // Salvar em schedules.json
         $schedules = getJson(FILE_SCHEDULES);
         $schedFound = false;
         foreach ($schedules as &$s) {
@@ -638,8 +645,8 @@ switch ($cmd) {
 
         saveAudit($matchId, 0, 'RESULTADO confirmado por ADMIN', "Decidido por: " . ($currentPilot['nome'] ?? 'Admin'));
 
-        $resultLabel = ($winnerId == 0) ? "Resultado: 🤝 *EMPATE*" : ($winnerId == -1 ? "Resultado: 🚫 *W.O. DUPLO*" : "🏆 Vencedor: *{$winName}*");
-        $msg = "👮‍♂️ *Resultado Definido por Admin*\n\n{$resultLabel}\n\nPartida #{$matchId} encerrada com sucesso.";
+        $resultLabel = ($winnerId == 0) ? "Resultado da partida {$matchId}: 🤝 *EMPATE*" : ($winnerId == -1 ? "👉 Resultado da partida {$matchId}: 🚫 *W.O. DUPLO*" : "Resultado da partida {$matchId} foi: 🏆 *Vencedor: {$winName}*");
+        $msg = "👮‍♂️ *Resultado Definido por Admin*\n\n{$resultLabel}\n\nResultado registrado com sucesso.";
         respond($msg, [
             'state' => 'FINALIZADO_ADMIN',
             'match_id' => $matchId,
