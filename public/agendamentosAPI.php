@@ -894,7 +894,37 @@ switch ($cmd) {
         // 3. Salvar Auditoria
         saveAudit($matchId, $currentPilot['id'], 'CONFIRMADO', "Piloto confirmou o agendamento via API.");
 
-        respond("✅ *Agendamento Confirmado!*\n\nA partida está oficialmente agendada. O seu oponente será notificado.\n\nNo dia do jogo, lembre-se de usar */play {$matchId}*.", ['state' => 'CONFIRMADO']);
+        $matches = getJson(FILE_MATCHES);
+        $match = null;
+        foreach ($matches as $m) { if ($m['id'] == $matchId) { $match = $m; break; } }
+        if (!$match) respond("❌ Partida #$matchId não encontrada para confirmação.");
+
+        $p1Id = $match['player_1_id'] ;
+        $p2Id = $match['player_2_id'] ;
+        $opponent_id = null;
+
+        if ($p1Id == $currentPilot['id']) {
+            $opponent_id = getTelegramIdByPilotId($p2Id) ;
+            $nickname = getPilotDisplayNameByNick(getPilotById($p2Id));
+        } else if ($p2Id == $currentPilot['id']) {
+            $opponent_id = getTelegramIdByPilotId($p1Id) ;
+            $nickname = getPilotDisplayNameByNick(getPilotById($p1Id));
+        }
+
+        $now = time();
+        $dtTimestamp = strtotime($schedules['data_hora']);
+        $formattedTime = date('d/m H:i', $dtTimestamp);
+
+        $responseData = [
+            'match_id' => $matchId,
+            'state' => 'CONFIRMADO',
+            'nickname' => $nickname,
+            'opponent_id' => $opponent_id,
+            'data_hora' => $formattedTime,
+            'tournament' => $match['tournament'],
+        ];
+
+        respond("✅ *Agendamento Confirmado!*\n\nA partida está oficialmente agendada. O seu oponente será notificado.\n\nNo dia do jogo, lembre-se de usar */play {$matchId}*.", $responseData);
         break;
 
     default:
