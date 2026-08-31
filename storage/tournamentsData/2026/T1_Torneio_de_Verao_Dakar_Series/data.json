@@ -1,6 +1,6 @@
 {
-  "torneio_id": "T1",
-  "nome": "Torneio de Verão: Dakar Series",
+  "tournamentID": "T1",
+  "name": "Torneio de Verão: Dakar Series",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
   "scoreType": "leaderboard",

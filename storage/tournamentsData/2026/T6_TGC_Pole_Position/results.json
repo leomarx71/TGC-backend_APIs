@@ -1,8 +1,8 @@
 [
   {
     "id": 1,
-    "roundId": 1,
-    "pilotId": 1,
+    "roundID": 1,
+    "pilotID": 1,
     "totalTime": 1352280,
 
     "times": {
@@ -28,8 +28,8 @@
   },
   {
     "id": 2,
-    "roundId": 2,
-    "pilotId": 2,
+    "roundID": 2,
+    "pilotID": 2,
     "totalTime": 1352280,
 
     "times": {
@@ -55,8 +55,8 @@
   },
   {
     "id": 3,
-    "roundId": 3,
-    "pilotId": 3,
+    "roundID": 3,
+    "pilotID": 3,
     "totalTime": null,
 
     "times": {

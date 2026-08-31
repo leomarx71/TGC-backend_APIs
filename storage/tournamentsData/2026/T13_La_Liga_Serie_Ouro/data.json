@@ -1,6 +1,6 @@
 {
-  "torneio_id": "T13",
-  "nome": "La Liga - Série Ouro",
+  "tournamentID": "T13",
+  "name": "La Liga - Série Ouro",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
   "scoreType": "leaderboard",

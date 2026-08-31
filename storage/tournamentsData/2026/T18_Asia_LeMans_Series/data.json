@@ -1,6 +1,6 @@
 {
-  "torneio_id": "T18",
-  "nome": "Asia LeMans Series",
+  "tournamentID": "T18",
+  "name": "Asia LeMans Series",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
   "scoreType": "leaderboard",

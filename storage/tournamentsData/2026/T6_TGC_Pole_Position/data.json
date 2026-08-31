@@ -1,6 +1,6 @@
 {
-  "torneio_id": "T6",
-  "nome": "TGC Pole Position",
+  "tournamentID": "T6",
+  "name": "TGC Pole Position",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
   "scoreType": "leaderboard",

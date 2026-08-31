@@ -1,6 +1,6 @@
 {
-  "torneio_id": "T16",
-  "nome": "Torneio de Primavera: Targa Florio",
+  "tournamentID": "T16",
+  "name": "Torneio de Primavera: Targa Florio",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
   "scoreType": "leaderboard",

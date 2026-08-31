@@ -1,6 +1,6 @@
 {
-  "torneio_id": "T8",
-  "nome": "F1 Academy",
+  "tournamentID": "T8",
+  "name": "F1 Academy",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
   "scoreType": "leaderboard",

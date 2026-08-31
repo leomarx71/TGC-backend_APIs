@@ -151,17 +151,6 @@ function saveAudit($matchId, $pilotId, $action, $details = '') {
     saveJson(FILE_AUDIT, $audit);
 }
 
-function hasAuditAction($matchId, $action, $timeThreshold = null) {
-    $audits = getJson(FILE_AUDIT);
-    foreach ($audits as $a) {
-        if ($a['matchID'] == $matchId && $a['action'] == $action) {
-            if ($timeThreshold && strtotime($a['timestamp']) <= $timeThreshold) continue;
-            return true;
-        }
-    }
-    return false;
-}
-
 // Verifica se a partida é contra o computador (ex: Ritchie / Pole Position)
 function isComputerMatch($match) {
     // Retorna true se um dos IDs for <= 0 (geralmente bots) ou se o torneio tiver 'Pole' no nome
@@ -608,7 +597,7 @@ switch ($cmd) {
             if ($s['matchID'] == $matchId && ($s['status'] ?? '') != 'RECUSADO') {
                 $s['status'] = 'PARTIDA_FINALIZADA';
                 $s['resultWinnerID'] = $winnerId;
-                $s['resultConfirmedBy'] = 'ADMIN_' . $pilotID;
+                $s['resultConfirmedBy'] = $pilotID;
                 $s['updatedAt'] = date('Y-m-d H:i:s');
                 unset($s['result_temp_winner']);
                 unset($s['result_proposal_by']);
@@ -622,7 +611,7 @@ switch ($cmd) {
                 'matchID' => $matchId,
                 'status' => 'PARTIDA_FINALIZADA',
                 'resultWinnerID' => $winnerId,
-                'resultConfirmedBy' => 'ADMIN_' . $pilotID,
+                'resultConfirmedBy' => $pilotID,
                 'createdAt' => date('Y-m-d H:i:s'),
                 'updatedAt' => date('Y-m-d H:i:s')
             ];
