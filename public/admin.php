@@ -43,25 +43,25 @@ if (file_exists(__DIR__ . '/../config/environment.php')) {
     include_once __DIR__ . '/config/environment.php'; // Fallback
 }
 
-// Carregar LogHandler
-if (file_exists(__DIR__ . '/../src/Utils/LogHandler.php')) {
-    include_once __DIR__ . '/../src/Utils/LogHandler.php';
-} elseif (file_exists(__DIR__ . '/src/Utils/LogHandler.php')) {
-    include_once __DIR__ . '/src/Utils/LogHandler.php'; // Fallback
+// Carregar logHandler
+if (file_exists(__DIR__ . '/../src/utils/logHandler.php')) {
+    include_once __DIR__ . '/../src/utils/logHandler.php';
+} elseif (file_exists(__DIR__ . '/src/utils/logHandler.php')) {
+    include_once __DIR__ . '/src/utils/logHandler.php'; // Fallback
 }
 
-// Carregar BackupManager
-if (file_exists(__DIR__ . '/../src/Utils/BackupManager.php')) {
-    include_once __DIR__ . '/../src/Utils/BackupManager.php';
-} elseif (file_exists(__DIR__ . '/src/Utils/BackupManager.php')) {
-    include_once __DIR__ . '/src/Utils/BackupManager.php'; // Fallback
+// Carregar backupManager
+if (file_exists(__DIR__ . '/../src/utils/backupManager.php')) {
+    include_once __DIR__ . '/../src/utils/backupManager.php';
+} elseif (file_exists(__DIR__ . '/src/utils/backupManager.php')) {
+    include_once __DIR__ . '/src/utils/backupManager.php'; // Fallback
 }
 
 // Carregar Auth
-if (file_exists(__DIR__ . '/../src/Auth/AdminAuth.php')) {
-    include_once __DIR__ . '/../src/Auth/AdminAuth.php';
-} elseif (file_exists(__DIR__ . '/src/Auth/AdminAuth.php')) {
-    include_once __DIR__ . '/src/Auth/AdminAuth.php'; // Fallback
+if (file_exists(__DIR__ . '/../src/Auth/adminAuth.php')) {
+    include_once __DIR__ . '/../src/Auth/adminAuth.php';
+} elseif (file_exists(__DIR__ . '/src/Auth/adminAuth.php')) {
+    include_once __DIR__ . '/src/Auth/adminAuth.php'; // Fallback
 }
 
 // ============================================================
@@ -87,7 +87,7 @@ if (file_exists($envFile)) {
 if (session_status() === PHP_SESSION_NONE) session_start();
 
 $loginError = '';
-$useAdvancedAuth = class_exists('AdminAuth');
+$useAdvancedAuth = class_exists('adminAuth');
 
 // --- PROCESSAMENTO DE LOGIN ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_login'])) {
@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_login'])) {
 		$loginError = 'Senha de administrador não configurada.';
 	} elseif ($useAdvancedAuth) {
         try {
-            AdminAuth::login($password);
+            adminAuth::login($password);
             header('Location: ' . $_SERVER['PHP_SELF']);
             exit;
         } catch (Exception $e) {
@@ -117,14 +117,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_login'])) {
 
 // --- LOGOUT ---
 if (isset($_GET['logout'])) {
-    if ($useAdvancedAuth) AdminAuth::logout();
+    if ($useAdvancedAuth) adminAuth::logout();
     unset($_SESSION['admin_logged_in']);
     session_destroy();
     header('Location: ' . $_SERVER['PHP_SELF']); exit;
 }
 
 // --- VERIFICAÇÃO DE ACESSO ---
-$isAuth = $useAdvancedAuth ? AdminAuth::check() : ($_SESSION['admin_logged_in'] ?? false);
+$isAuth = $useAdvancedAuth ? adminAuth::check() : ($_SESSION['admin_logged_in'] ?? false);
 
 if (!$isAuth) {
     // TELA DE LOGIN SIMPLIFICADA
@@ -249,7 +249,7 @@ function getBackupDirSize() {
     return formatBytes($size);
 }
 
-// Helper para logs do admin (Compatibilidade com BackupManager)
+// Helper para logs do admin (Compatibilidade com backupManager)
 function adminLog($msg) {
     $entry = "[" . date('Y-m-d H:i:s') . "] ADMIN: $msg" . PHP_EOL;
     file_put_contents(FILE_LOG, $entry, FILE_APPEND);
@@ -536,8 +536,8 @@ if (isset($_POST['baixar_backup'])) {
 
 // --- ADMIN: CRIAR BACKUP (SNAPSHOT) ---
 if (isset($_POST['criar_backup'])) {
-    if (class_exists('BackupManager')) {
-        $res = BackupManager::createBackupSnapshot($_SESSION['admin_user'] ?? 'Admin');
+    if (class_exists('backupManager')) {
+        $res = backupManager::createBackupSnapshot($_SESSION['admin_user'] ?? 'Admin');
         if ($res['success']) {
             adminLog("Backup manual criado: " . $res['timestamp']);
             $msgFeedback = "<div class='bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4'>💾 <b>Backup Criado!</b> Pasta: {$res['timestamp']}</div>";
@@ -545,15 +545,15 @@ if (isset($_POST['criar_backup'])) {
             $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>Erro ao criar backup: {$res['error']}</div>";
         }
     } else {
-        $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>Classe BackupManager não encontrada.</div>";
+        $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>Classe backupManager não encontrada.</div>";
     }
 }
 
 // --- ADMIN: EXCLUIR BACKUP ---
 if (isset($_POST['excluir_backup'])) {
     $timestamp = $_POST['timestamp'] ?? '';
-    if (class_exists('BackupManager')) {
-        if (BackupManager::deleteBackup($timestamp)) {
+    if (class_exists('backupManager')) {
+        if (backupManager::deleteBackup($timestamp)) {
             adminLog("Backup excluído: $timestamp");
             $msgFeedback = "<div class='bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4'>🗑️ Backup <b>$timestamp</b> excluído.</div>";
         } else {
@@ -564,8 +564,8 @@ if (isset($_POST['excluir_backup'])) {
 
 // --- ADMIN: LIMPAR TUDO (RESET TEMPORADA) ---
 if (isset($_POST['limpar_partidas'])) {
-    if (class_exists('BackupManager')) {
-        $res = BackupManager::rotateSeasonFull($_SESSION['admin_user'] ?? 'Admin');
+    if (class_exists('backupManager')) {
+        $res = backupManager::rotateSeasonFull($_SESSION['admin_user'] ?? 'Admin');
         if ($res['success']) {
             adminLog("Temporada resetada e backup criado: " . $res['timestamp']);
             $msgFeedback = "<div class='bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4'>🔄 <b>Temporada Resetada!</b> Backup de segurança em: {$res['timestamp']}</div>";
@@ -704,8 +704,8 @@ $matches = getJson(FILE_MATCHES);
 $schedules = getJson(FILE_SCHEDULES);
 $logTail = tailLog(100); 
 
-// Carregar Backups (Usando BackupManager)
-$backupList = class_exists('BackupManager') ? BackupManager::listBackups() : [];
+// Carregar Backups (Usando backupManager)
+$backupList = class_exists('backupManager') ? backupManager::listBackups() : [];
 
 $pilotsMap = []; 
 if (is_array($pilots)) {
