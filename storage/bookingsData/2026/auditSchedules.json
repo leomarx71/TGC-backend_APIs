@@ -46,5 +46,13 @@
         "pilotID": 2,
         "action": "CONFIRMADO",
         "details": "Data Confirmada"
+    },
+    {
+        "id": 7,
+        "timestamp": "2026-08-31 04:45:47",
+        "matchID": 1,
+        "pilotID": 0,
+        "action": "ADMIN_UPDATE_MATCH",
+        "details": "Fase alterada pelo painel administrativo"
     }
 ]

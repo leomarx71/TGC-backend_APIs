@@ -19,7 +19,7 @@ if (file_exists(__DIR__ . '/../src/config/environment.php')) {
 }
 
 if (!defined('BASE_DIR')) define('BASE_DIR', __DIR__);
-if (!defined('FILE_LOG_API')) define('FILE_LOG_API');
+if (!defined('FILE_LOG_BOT')) define('FILE_LOG_BOT', __DIR__);
 
 function writeLog($msg, $data = null) {
     $date = date('Y-m-d H:i:s');
@@ -27,7 +27,7 @@ function writeLog($msg, $data = null) {
     if ($data !== null) {
         $content .= " | DADOS: " . (is_array($data) || is_object($data) ? json_encode($data, JSON_UNESCAPED_UNICODE) : $data);
     }
-    file_put_contents(FILE_LOG_API, $content . PHP_EOL, FILE_APPEND);
+    file_put_contents(FILE_LOG_BOT, $content . PHP_EOL, FILE_APPEND);
 }
 
 $secretToken = $_ENV['WEBHOOK_SECRET'] ?? '';
@@ -413,7 +413,7 @@ switch ($cmd) {
         }
 
         $responseData = [
-            'match_id' => $matchId,
+            'matchID' => $matchId,
             'state' => '',
             'nickname' => $nickname,
             'opponent_id' => $opponent_id,
@@ -506,7 +506,7 @@ switch ($cmd) {
 
         if ($winnerInput === null || $winnerInput === '') {
             $responseData = [
-                'match_id' => $matchId,
+                'matchID' => $matchId,
                 'player_1' => [
                     'id' => $p1Id,
                     'name' => $nick1,
@@ -624,7 +624,7 @@ switch ($cmd) {
         $msg = "👮‍♂️ *Resultado Definido por Admin*\n\n{$resultLabel}\n\nResultado registrado com sucesso.";
         respond($msg, [
             'state' => 'FINALIZADO_ADMIN',
-            'match_id' => $matchId,
+            'matchID' => $matchId,
             'winner_id' => $winnerId,
             'winner_name' => $winName
         ]);
@@ -650,7 +650,7 @@ switch ($cmd) {
         $sched = getMatchSchedule($matchId);
         $msg = "";
         $responseData = [
-            'match_id' => $matchId,
+            'matchID' => $matchId,
             'state' => $sched['status'],
             'opponent_id' => getTelegramIdByPilotId($match['player2ID'])
         ];
@@ -746,7 +746,7 @@ switch ($cmd) {
         }
 
         $responseData = [
-            'match_id' => $matchId,
+            'matchID' => $matchId,
             'state' => '',
             'nickname' => $nickname,
             'opponent_id' => $opponent_id,
@@ -874,8 +874,8 @@ switch ($cmd) {
         foreach ($matches as $m) { if ($m['id'] == $matchId) { $match = $m; break; } }
         if (!$match) respond("❌ Partida #$matchId não encontrada para confirmação.");
 
-        $p1Id = $match['player_1_id'] ;
-        $p2Id = $match['player_2_id'] ;
+        $p1Id = $match['player1ID'] ;
+        $p2Id = $match['player2ID'] ;
         $opponent_id = null;
 
         if ($p1Id == $currentPilot['id']) {
@@ -890,7 +890,7 @@ switch ($cmd) {
         $formattedTime = date('d/m H:i', $dtTimestamp);
 
         $responseData = [
-            'match_id' => $matchId,
+            'matchID' => $matchId,
             'state' => 'CONFIRMADO',
             'nickname' => $nickname,
             'opponent_id' => $opponent_id,

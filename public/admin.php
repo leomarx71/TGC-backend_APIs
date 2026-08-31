@@ -99,38 +99,9 @@ if (!$isAuth) {
 }
 
 // 3. LÓGICA DO DASHBOARD (Listas de apoio)
-$torneios = [
-    "T0 - ADM - Bot WhatsApp 🤖 🏁",
-    "T1 - Torneio de Verão: Dakar Series",
-    "T2 - American LeMans Series",
-    "T3 - La Liga - Série Ouro",
-    "T4 - La Liga - Série Prata",
-    "T5 - La Liga - Série Bronze",
-    "T6 - TGC Pole Position",
-    "T7 - Torneio de Outono: Acropolis Cup",
-    "T8 - F1 Academy",
-    "T9 - Copa TGC",
-    "T10 - TGC Numerado",
-    "T11 - TGC Prototype Challenge",
-    "T12 - Torneio de Inverno: Arctic Rally",
-    "T13 - La Liga - Série Ouro",
-    "T14 - La Liga - Série Prata",
-    "T15 - La Liga - Série Bronze",
-    "T16 - Torneio de Primavera: Targa Florio",
-    "T17 - Champions Cup",
-    "T18 - Asia LeMans Series"
-];
-
-$fases = [
-    "Fase de Grupos", 
-    "Rodada Atual",
-    "Eliminatórias", 
-    "Oitavas de Final", 
-    "Quartas de Final", 
-    "Semifinal", 
-    "Final", 
-    "3º Lugar"
-];
+$tournamentCatalog = loadTournamentCatalog();
+$torneios = $tournamentCatalog['tournaments'];
+$fases = $tournamentCatalog['phases'];
 
 $paisesTopGear = ["USA", "SAM", "JAP", "GER", "SCN", "FRA", "ITA", "UKG"];
 $pistas_disponiveis = [
@@ -149,10 +120,140 @@ function getJson($file) { return file_exists($file) ? json_decode(file_get_conte
 function saveJson($file, $data) { file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX); }
 function getNextId($array) { return empty($array) ? 1 : max(array_column($array, 'id')) + 1; }
 
+function loadTournamentCatalog() {
+    $tournaments = getJson(FILE_TOURNAMENTS);
+    if (!is_array($tournaments) || empty($tournaments)) {
+        $tournaments = [
+            ['id' => 'T0', 'name' => 'ADM - Bot WhatsApp 🤖 🏁'],
+            ['id' => 'T1', 'name' => 'Torneio de Verão: Dakar Series'],
+            ['id' => 'T2', 'name' => 'American LeMans Series'],
+            ['id' => 'T3', 'name' => 'La Liga - Série Ouro'],
+            ['id' => 'T4', 'name' => 'La Liga - Série Prata'],
+            ['id' => 'T5', 'name' => 'La Liga - Série Bronze'],
+            ['id' => 'T6', 'name' => 'TGC Pole Position'],
+            ['id' => 'T7', 'name' => 'Torneio de Outono: Acropolis Cup'],
+            ['id' => 'T8', 'name' => 'F1 Academy'],
+            ['id' => 'T9', 'name' => 'Copa TGC'],
+            ['id' => 'T10', 'name' => 'TGC Numerado'],
+            ['id' => 'T11', 'name' => 'TGC Prototype Challenge'],
+            ['id' => 'T12', 'name' => 'Torneio de Inverno: Arctic Rally'],
+            ['id' => 'T13', 'name' => 'La Liga - Série Ouro'],
+            ['id' => 'T14', 'name' => 'La Liga - Série Prata'],
+            ['id' => 'T15', 'name' => 'La Liga - Série Bronze'],
+            ['id' => 'T16', 'name' => 'Torneio de Primavera: Targa Florio'],
+            ['id' => 'T17', 'name' => 'Champions Cup'],
+            ['id' => 'T18', 'name' => 'Asia LeMans Series']
+        ];
+    }
+
+    $phases = getJson(FILE_TOURNAMENTS_PHASES);
+    if (!is_array($phases) || empty($phases)) {
+        $phases = [
+            ['id' => 'F1', 'name' => 'Fase de Grupos'],
+            ['id' => 'F2', 'name' => 'Oitavas de Final'],
+            ['id' => 'F3', 'name' => 'Quartas de Final'],
+            ['id' => 'F4', 'name' => 'Semifinal'],
+            ['id' => 'F5', 'name' => 'Final'],
+            ['id' => 'F6', 'name' => '3º Lugar'],
+            ['id' => 'F7', 'name' => 'Rodada Atual'],
+            ['id' => 'F8', 'name' => 'Eliminatórias']
+        ];
+    }
+
+    return ['tournaments' => $tournaments, 'phases' => $phases];
+}
+
+function normalizeTournamentId($value, $tournaments) {
+    if (empty($value)) return '';
+    $valueStr = (string) $value;
+
+    if (preg_match('/^(T\d+)/', $valueStr, $matches)) {
+        return $matches[1];
+    }
+
+    foreach ($tournaments as $t) {
+        $id = (string) ($t['id'] ?? '');
+        $name = (string) ($t['name'] ?? '');
+        if ($id === $valueStr || $name === $valueStr || strpos($id, $valueStr) !== false || strpos($name, $valueStr) !== false) {
+            return $id;
+        }
+    }
+    return $valueStr;
+}
+
+function normalizePhaseId($value, $phases) {
+    if (empty($value)) return '';
+    foreach ($phases as $phase) {
+        if (($phase['id'] ?? '') === (string) $value || (($phase['name'] ?? '') === (string) $value)) {
+            return (string) ($phase['id'] ?? '');
+        }
+    }
+    return (string) $value;
+}
+
+function getTournamentNameById($id, $tournaments) {
+    foreach ($tournaments as $t) {
+        if (($t['id'] ?? '') === (string) $id) return (string) ($t['name'] ?? $id);
+    }
+    return (string) $id;
+}
+
+function getPhaseNameById($id, $phases) {
+    foreach ($phases as $p) {
+        if (($p['id'] ?? '') === (string) $id) return (string) ($p['name'] ?? $id);
+    }
+    return (string) $id;
+}
+
+function normalizeMatchRecord($match, $tournaments, $phases) {
+    if (!is_array($match)) return $match;
+
+    $tournamentId = normalizeTournamentId($match['tournament_id'] ?? ($match['tournament'] ?? ''), $tournaments);
+    $phaseId = normalizePhaseId($match['phase_id'] ?? ($match['phase'] ?? ''), $phases);
+
+    if (!empty($tournamentId)) {
+        $match['tournament_id'] = $tournamentId;
+        $match['tournament'] = getTournamentNameById($tournamentId, $tournaments);
+    }
+    if (!empty($phaseId)) {
+        $match['phase_id'] = $phaseId;
+        $match['phase'] = getPhaseNameById($phaseId, $phases);
+    }
+
+    $match['player_1_id'] = $match['player_1_id'] ?? $match['player1ID'] ?? null;
+    $match['player_2_id'] = $match['player_2_id'] ?? $match['player2ID'] ?? null;
+    $match['group_name'] = $match['group_name'] ?? $match['groupName'] ?? null;
+    $match['winner_id'] = $match['winner_id'] ?? $match['winnerID'] ?? null;
+    $match['created_at'] = $match['created_at'] ?? $match['createdAt'] ?? null;
+    $match['local_track'] = $match['local_track'] ?? $match['localTrack'] ?? [];
+
+    $match['player1ID'] = $match['player_1_id'] ?? $match['player1ID'] ?? 0;
+    $match['player2ID'] = $match['player_2_id'] ?? $match['player2ID'] ?? 0;
+    $match['groupName'] = $match['group_name'] ?? $match['groupName'] ?? '';
+    $match['winnerID'] = $match['winner_id'] ?? $match['winnerID'] ?? null;
+    $match['createdAt'] = $match['created_at'] ?? $match['createdAt'] ?? date('Y-m-d H:i:s');
+    $match['localTrack'] = $match['local_track'] ?? $match['localTrack'] ?? [];
+
+    return $match;
+}
+
+function appendAdminAudit($matchId, $action, $details) {
+    $audit = getJson(FILE_AUDIT);
+    $audit[] = [
+        'id' => getNextId($audit),
+        'timestamp' => date('Y-m-d H:i:s'),
+        'matchID' => (int) $matchId,
+        'pilotID' => 0,
+        'action' => $action,
+        'details' => $details
+    ];
+    saveJson(FILE_AUDIT, $audit);
+}
+
 // Helper para ler as últimas linhas do log
 function tailLog($lines = 50) {
-    if (!file_exists(FILE_LOG)) return "Arquivo de log vazio ou inexistente.";
-    $file = file(FILE_LOG);
+    if (!file_exists(FILE_LOG_BOT)) return "Arquivo de log vazio ou inexistente.";
+    $file = file(FILE_LOG_BOT);
     $total = count($file);
     $start = max(0, $total - $lines);
     return implode("", array_slice($file, $start));
@@ -162,7 +263,8 @@ function tailLog($lines = 50) {
 function getMatchSchedule($matchId, $allSchedules) {
     if (!is_array($allSchedules)) return null;
     foreach ($allSchedules as $s) {
-        if (isset($s['match_id']) && $s['match_id'] == $matchId) return $s;
+        $scheduleMatchId = $s['match_id'] ?? $s['matchID'] ?? null;
+        if ($scheduleMatchId == $matchId) return $s;
     }
     return null;
 }
@@ -197,7 +299,7 @@ function getBackupDirSize() {
 // Helper para logs do admin (Compatibilidade com backupManager)
 function adminLog($msg) {
     $entry = "[" . date('Y-m-d H:i:s') . "] ADMIN: $msg" . PHP_EOL;
-    file_put_contents(FILE_LOG, $entry, FILE_APPEND);
+    file_put_contents(FILE_LOG_BOT, $entry, FILE_APPEND);
 }
 
 // ============================================================
@@ -241,66 +343,72 @@ if (isset($_POST['edit_match_id'])) {
     $newP2 = intval($_POST['edit_p2'] ?? 0);
     $newDate = $_POST['edit_deadline'] ?? '';
     $newWinnerVal = $_POST['edit_winner'] ?? 'null'; // 'null', '0', '-1' ou ID
+    $tournamentCatalog = loadTournamentCatalog();
+    $tournaments = $tournamentCatalog['tournaments'];
+    $phases = $tournamentCatalog['phases'];
+    $resolvedPhaseId = normalizePhaseId($newPhase, $phases);
+    $resolvedPhaseName = getPhaseNameById($resolvedPhaseId, $phases);
 
-    if ($editId && $newPhase && $newP1 && $newP2 && $newDate) {
+    if ($editId && $resolvedPhaseId && $newP1 && $newP2 && $newDate) {
         $currentMatches = getJson(FILE_MATCHES);
         $schedules = getJson(FILE_SCHEDULES);
         $updated = false;
-        
+
         // --- TRAVA DE SEGURANÇA: VENCEDOR SEM AGENDAMENTO ---
         $canSave = true;
-        
-        // Se estiver tentando definir um resultado (diferente de 'null' que significa Em Disputa/Pendente)
+
         if ($newWinnerVal !== 'null') {
             $hasActiveSchedule = false;
             foreach ($schedules as $s) {
-                // Verifica se existe agendamento para esta partida e se não foi recusado
-                if ($s['match_id'] == $editId && $s['status'] != 'RECUSADO') {
+                if (($s['match_id'] ?? $s['matchID'] ?? null) == $editId && (($s['status'] ?? '') != 'RECUSADO')) {
                     $hasActiveSchedule = true;
                     break;
                 }
             }
 
             if (!$hasActiveSchedule) {
-                // BLOQUEIA A AÇÃO
                 $canSave = false;
                 $msgFeedback = "<div class='bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4'>⚠️ <b>Ação Bloqueada:</b> Não é possível definir um resultado (Vencedor/Empate/WO) pois esta partida <b>não possui um agendamento ativo</b>.<br><span class='text-xs'>Os pilotos devem agendar a partida primeiro, ou um agendamento deve ser criado manualmente.</span></div>";
             }
         }
-        // ----------------------------------------------------
 
         if ($canSave) {
             $newDeadline = $newDate . " 23:59:59";
-            $newGroupName = ($newPhase === "Fase de Grupos") ? "Grupo $newGroupNum" : $newPhase;
-            
+            $newGroupName = ($resolvedPhaseId === "F1") ? "Grupo $newGroupNum" : $resolvedPhaseName;
+
             foreach($currentMatches as &$m) {
-                if ($m['id'] == $editId) {
-                    // Atualiza dados básicos
-                    $m['phase'] = $newPhase;
+                if (($m['id'] ?? null) == $editId) {
+                    $m['phase_id'] = $resolvedPhaseId;
+                    $m['phase'] = $resolvedPhaseName;
                     $m['group_name'] = $newGroupName;
+                    $m['groupName'] = $newGroupName;
                     $m['player_1_id'] = $newP1;
                     $m['player_2_id'] = $newP2;
+                    $m['player1ID'] = $newP1;
+                    $m['player2ID'] = $newP2;
                     $m['deadline'] = $newDeadline;
 
-                    // Lógica do Vencedor/Status
                     if ($newWinnerVal === 'null') {
-                        // Define como pendente/em disputa
                         $m['winner_id'] = null;
-                        if ($m['status'] == 'CONCLUIDO') {
-                            $m['status'] = 'PENDENTE'; // Reverte status se estava concluído
-                        }
+                        $m['winnerID'] = null;
+                        $m['status'] = (($m['status'] ?? '') == 'CONCLUIDO') ? 'PENDENTE' : ($m['status'] ?? 'PENDENTE');
                     } else {
-                        // Define vencedor (ID, 0=Empate, -1=WO)
                         $m['winner_id'] = intval($newWinnerVal);
+                        $m['winnerID'] = intval($newWinnerVal);
                         $m['status'] = 'CONCLUIDO';
-                        
-                        // Se definiu vencedor, vamos finalizar o agendamento no schedules.bookingsData também para sincronia
+
                         foreach ($schedules as &$s) {
-                            if ($s['match_id'] == $editId && $s['status'] != 'RECUSADO') {
+                            $scheduleMatchId = $s['match_id'] ?? $s['matchID'] ?? null;
+                            if ($scheduleMatchId == $editId && (($s['status'] ?? '') != 'RECUSADO')) {
+                                $s['match_id'] = $editId;
+                                $s['matchID'] = $editId;
                                 $s['status'] = 'PARTIDA_FINALIZADA';
                                 $s['result_winner_id'] = intval($newWinnerVal);
+                                $s['resultWinnerID'] = intval($newWinnerVal);
                                 $s['result_confirmed_by'] = 'ADMIN_PAINEL';
+                                $s['resultConfirmedBy'] = 'ADMIN_PAINEL';
                                 $s['updated_at'] = date('Y-m-d H:i:s');
+                                $s['updatedAt'] = date('Y-m-d H:i:s');
                             }
                         }
                     }
@@ -309,14 +417,12 @@ if (isset($_POST['edit_match_id'])) {
                     break;
                 }
             }
-            
+
             if ($updated) {
                 saveJson(FILE_MATCHES, $currentMatches);
-                // Salva schedules apenas se houve alteração de vencedor que impactou
-                if ($newWinnerVal !== 'null') {
-                    saveJson(FILE_SCHEDULES, $schedules);
-                }
-                
+                saveJson(FILE_SCHEDULES, $schedules);
+                appendAdminAudit($editId, 'ADMIN_UPDATE_MATCH', 'Fase: ' . $resolvedPhaseName . ' | Grupo: ' . $newGroupName . ' | Pilotos: ' . $newP1 . ' x ' . $newP2 . ' | Prazo: ' . $newDeadline . ' | Resultado: ' . $newWinnerVal);
+
                 adminLog("Partida #$editId editada.");
                 $msgFeedback = "<div class='bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4'>✏️ Partida <b>#$editId</b> atualizada com sucesso.</div>";
             }
@@ -352,18 +458,29 @@ if (isset($_POST['clone_match_id'])) {
             $newGroupName = ($clonePhase === "Fase de Grupos") ? "Grupo $cloneGroupNum" : $clonePhase;
             
             // Criar nova partida baseada na origem
+            $resolvedClonePhaseId = normalizePhaseId($clonePhase, $phases);
+            $resolvedClonePhaseName = getPhaseNameById($resolvedClonePhaseId, $phases);
+            $resolvedCloneTournamentId = normalizeTournamentId($sourceMatch['tournament_id'] ?? ($sourceMatch['tournament'] ?? ''), $tournaments);
             $newMatch = [
                 'id' => getNextId($matches),
                 'player_1_id' => $cloneP1,
                 'player_2_id' => $cloneP2,
+                'player1ID' => $cloneP1,
+                'player2ID' => $cloneP2,
                 'group_name' => $newGroupName,
-                'tournament' => $sourceMatch['tournament'], // Mantém o torneio
-                'phase' => $clonePhase,
+                'groupName' => $newGroupName,
+                'tournament_id' => $resolvedCloneTournamentId,
+                'phase_id' => $resolvedClonePhaseId,
+                'tournament' => getTournamentNameById($resolvedCloneTournamentId, $tournaments),
+                'phase' => $resolvedClonePhaseName,
                 'local_track' => $sourceMatch['local_track'], // Copia o local
+                'localTrack' => $sourceMatch['local_track'],
                 'deadline' => $newDeadline,
                 'status' => 'PENDENTE',
                 'winner_id' => null,
-                'created_at' => date('Y-m-d H:i:s')
+                'winnerID' => null,
+                'created_at' => date('Y-m-d H:i:s'),
+                'createdAt' => date('Y-m-d H:i:s')
             ];
 
             $matches[] = $newMatch;
@@ -430,15 +547,15 @@ if (isset($_FILES['matches_file']) && $_FILES['matches_file']['error'] === UPLOA
 
 // --- AÇÃO: BAIXAR LOGS ---
 if (isset($_POST['baixar_logs'])) {
-    if (file_exists(FILE_LOG)) {
+    if (file_exists(FILE_LOG_BOT)) {
         header('Content-Description: File Transfer');
         header('Content-Type: application/octet-stream');
         header('Content-Disposition: attachment; filename="botMain_'.date('Y-m-d_Hi').'.log"');
         header('Expires: 0');
         header('Cache-Control: must-revalidate');
         header('Pragma: public');
-        header('Content-Length: ' . filesize(FILE_LOG));
-        readfile(FILE_LOG);
+        header('Content-Length: ' . filesize(FILE_LOG_BOT));
+        readfile(FILE_LOG_BOT);
         exit;
     }
 }
@@ -529,18 +646,18 @@ if (isset($_POST['limpar_partidas'])) {
 
 // --- ADMIN: LIMPAR LOGS ---
 if (isset($_POST['limpar_logs'])) {
-    file_put_contents(FILE_LOG, "[" . date('Y-m-d H:i:s') . "] Log reiniciado pelo Admin." . PHP_EOL);
+    file_put_contents(FILE_LOG_BOT, "[" . date('Y-m-d H:i:s') . "] Log reiniciado pelo Admin." . PHP_EOL);
     $msgFeedback = "<div class='bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-4'>📄 <b>Logs Limpos!</b> Arquivo de log reiniciado.</div>";
 }
 
 // --- ADMIN: ARQUIVAR LOGS ---
 if (isset($_POST['arquivar_logs'])) {
-    if (file_exists(FILE_LOG)) {
+    if (file_exists(FILE_LOG_BOT)) {
         $timestamp = date('Y-m-d_H-i-s');
         $archiveName = LOG_DIR . "/archive_botMain_{$timestamp}.log";
         
-        if (rename(FILE_LOG, $archiveName)) {
-            file_put_contents(FILE_LOG, "[" . date('Y-m-d H:i:s') . "] Novo arquivo de log iniciado arquivamento." . PHP_EOL);
+        if (rename(FILE_LOG_BOT, $archiveName)) {
+            file_put_contents(FILE_LOG_BOT, "[" . date('Y-m-d H:i:s') . "] Novo arquivo de log iniciado arquivamento." . PHP_EOL);
             $msgFeedback = "<div class='bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4'>📦 <b>Log Arquivado!</b> Salvo como: " . basename($archiveName) . "</div>";
         } else {
             $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>Erro ao arquivar log.</div>";
@@ -552,17 +669,22 @@ if (isset($_POST['arquivar_logs'])) {
 if (isset($_POST['gerar_partidas'])) {
     $pilots = getJson(FILE_PILOTS);
     $matches = getJson(FILE_MATCHES);
+    $tournamentCatalog = loadTournamentCatalog();
+    $tournaments = $tournamentCatalog['tournaments'];
+    $phases = $tournamentCatalog['phases'];
     
     // Processamento da Ordem (P1/P2)
     $order = !empty($_POST['pilot_order']) ? explode(',', $_POST['pilot_order']) : [];
 
     $selTournament = $_POST['tournament'] ?? '';
+    $selTournamentId = normalizeTournamentId($selTournament, $tournaments);
     $selPhase = $_POST['phase'] ?? '';
+    $selPhaseId = normalizePhaseId($selPhase, $phases);
     $selGroupNum = $_POST['group_num'] ?? '';
     $drawType = $_POST['draw_type'] ?? '';
     $dateInput = $_POST['deadline_date'] ?? ''; 
     $prazoFinal = $dateInput ? $dateInput . " 23:59:59" : date('Y-m-d 23:59:59', strtotime('+7 days'));
-    $groupName = ($selPhase === "Fase de Grupos") ? "Grupo $selGroupNum" : $selPhase;
+    $groupName = ($selPhaseId === "F1") ? "Grupo $selGroupNum" : getPhaseNameById($selPhaseId, $phases);
 
     $localArray = []; 
     
@@ -595,14 +717,22 @@ if (isset($_POST['gerar_partidas'])) {
                 'id' => getNextId($matches),
                 'player_1_id' => intval($order[0]), // Player 1 (Primeiro clicado)
                 'player_2_id' => intval($order[1]), // Player 2 (Segundo clicado)
+                'player1ID' => intval($order[0]),
+                'player2ID' => intval($order[1]),
                 'group_name' => $groupName,
-                'tournament' => $selTournament,
-                'phase' => $selPhase,
+                'groupName' => $groupName,
+                'tournament_id' => $selTournamentId,
+                'phase_id' => $selPhaseId,
+                'tournament' => getTournamentNameById($selTournamentId, $tournaments),
+                'phase' => getPhaseNameById($selPhaseId, $phases),
                 'local_track' => $localArray,
+                'localTrack' => $localArray,
                 'deadline' => $prazoFinal,
                 'status' => 'PENDENTE',
                 'winner_id' => null,
-                'created_at' => date('Y-m-d H:i:s')
+                'winnerID' => null,
+                'created_at' => date('Y-m-d H:i:s'),
+                'createdAt' => date('Y-m-d H:i:s')
             ];
             $novas++;
         } else {
@@ -613,16 +743,24 @@ if (isset($_POST['gerar_partidas'])) {
                         'id' => getNextId($matches),
                         'player_1_id' => intval($order[$i]),
                         'player_2_id' => intval($order[$j]),
+                        'player1ID' => intval($order[$i]),
+                        'player2ID' => intval($order[$j]),
                         'group_name' => $groupName,
-                        'tournament' => $selTournament,
-                        'phase' => $selPhase,
+                        'groupName' => $groupName,
+                        'tournament_id' => $selTournamentId,
+                        'phase_id' => $selPhaseId,
+                        'tournament' => getTournamentNameById($selTournamentId, $tournaments),
+                        'phase' => getPhaseNameById($selPhaseId, $phases),
                         'local_track' => $localArray,
+                        'localTrack' => $localArray,
                         'deadline' => $prazoFinal,
                         'status' => 'PENDENTE',
                         'winner_id' => null,
-                        'created_at' => date('Y-m-d H:i:s')
+                        'winnerID' => null,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'createdAt' => date('Y-m-d H:i:s')
                     ];
-                    $novas++;
+                   $novas++;
                 }
             }
         }
@@ -636,6 +774,9 @@ if (isset($_POST['gerar_partidas'])) {
 }
 
 // CARREGAR DADOS
+$tournamentCatalog = loadTournamentCatalog();
+$tournaments = $tournamentCatalog['tournaments'];
+$phases = $tournamentCatalog['phases'];
 $pilots = getJson(FILE_PILOTS);
 
 // ORDENAR PILOTOS ALFABETICAMENTE (Nickname ou Nome) - NOVO
@@ -660,9 +801,10 @@ if (is_array($pilots)) {
 $viewMatches = [];
 if (is_array($matches)) {
     foreach ($matches as $m) {
-        $t = $m['tournament'] ?? 'Outros';
-        $f = $m['phase'] ?? 'Geral';
-        $viewMatches[$t][$f][] = $m;
+        $normalizedMatch = normalizeMatchRecord($m, $tournaments, $phases);
+        $t = $normalizedMatch['tournament'] ?? 'Outros';
+        $f = $normalizedMatch['phase'] ?? 'Geral';
+        $viewMatches[$t][$f][] = $normalizedMatch;
     }
 }
 
@@ -784,7 +926,7 @@ if (is_array($matches)) {
             });
         }
 
-        function toggleGroupSelect(val) { document.getElementById('group_container').classList.toggle('hidden', val !== 'Fase de Grupos'); }
+        function toggleGroupSelect(val) { document.getElementById('group_container').classList.toggle('hidden', val !== 'F1'); }
         
         function switchDrawType(val) {
             // Esconder todos
@@ -809,7 +951,7 @@ if (is_array($matches)) {
             toggleEditGroupSelect(phase);
 
             // Setar Grupo se for Fase de Grupos
-            if (phase === 'Fase de Grupos') {
+            if (phase === 'F1' || phase === 'Fase de Grupos') {
                 const groupNum = groupName.replace('Grupo ', '');
                 document.getElementById('edit_group_num').value = groupNum;
             }
@@ -857,21 +999,21 @@ if (is_array($matches)) {
         }
         
         function toggleEditGroupSelect(val) {
-            document.getElementById('edit_group_container').classList.toggle('hidden', val !== 'Fase de Grupos');
+            document.getElementById('edit_group_container').classList.toggle('hidden', val !== 'F1');
         }
 
         // Modal de Clonagem
         function openCloneModal(id, phase, groupName, p1, p2, deadline) {
             document.getElementById('clone_match_id').value = id;
             document.getElementById('clone_match_title').innerText = "Clonar Partida (Origem: #" + id + ")";
-            
+             
             // Setar Fase
             const phaseSelect = document.getElementById('clone_phase');
             phaseSelect.value = phase;
             toggleCloneGroupSelect(phase);
 
             // Setar Grupo
-            if (phase === 'Fase de Grupos') {
+            if (phase === 'F1' || phase === 'Fase de Grupos') {
                 const groupNum = groupName.replace('Grupo ', '');
                 document.getElementById('clone_group_num').value = groupNum;
             }
@@ -892,7 +1034,7 @@ if (is_array($matches)) {
         }
         
         function toggleCloneGroupSelect(val) {
-            document.getElementById('clone_group_container').classList.toggle('hidden', val !== 'Fase de Grupos');
+            document.getElementById('clone_group_container').classList.toggle('hidden', val !== 'F1');
         }
 
         // Modal de Logs e Backups
@@ -936,7 +1078,7 @@ if (is_array($matches)) {
                     <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">1. Torneio</label>
                     <select name="tournament" class="block w-full border-gray-300 rounded border bg-gray-50 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
                         <?php foreach ($torneios as $t): ?>
-                            <option value="<?= $t ?>"><?= $t ?></option>
+                            <option value="<?= htmlspecialchars((string)($t['id'] ?? '')) ?>"><?= htmlspecialchars((string)($t['name'] ?? '')) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -945,7 +1087,7 @@ if (is_array($matches)) {
                 <div class="p-5">
                     <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">2. Fase</label>
                     <select name="phase" onchange="toggleGroupSelect(this.value)" class="block w-full border-gray-300 rounded border py-2 mb-3 text-sm">
-                        <?php foreach ($fases as $f): ?><option value="<?= $f ?>"><?= $f ?></option><?php endforeach; ?>
+                        <?php foreach ($fases as $f): ?><option value="<?= htmlspecialchars((string)($f['id'] ?? '')) ?>"><?= htmlspecialchars((string)($f['name'] ?? '')) ?></option><?php endforeach; ?>
                     </select>
                     <div id="group_container">
                         <select name="group_num" class="block w-full border-gray-300 rounded bg-gray-50 py-2 text-sm">
@@ -1220,12 +1362,12 @@ if (is_array($matches)) {
                                         </td>
                                         <td class="px-4 py-3 text-right">
                                             <div class="flex items-center justify-end gap-2">
-                                                <button onclick="openCloneModal(<?= $m['id'] ?>, '<?= $m['phase'] ?>', '<?= $m['group_name'] ?>', <?= $p1Id ?>, <?= $p2Id ?>, '<?= $m['deadline'] ?>')" class="text-green-500 hover:text-green-700 p-1 rounded hover:bg-green-50" title="Clonar Partida">
+                                                <button onclick="openCloneModal(<?= $m['id'] ?>, '<?= $m['phase_id'] ?? $m['phase'] ?>', '<?= $m['group_name'] ?>', <?= $p1Id ?>, <?= $p2Id ?>, '<?= $m['deadline'] ?>')" class="text-green-500 hover:text-green-700 p-1 rounded hover:bg-green-50" title="Clonar Partida">
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
                                                     </svg>
                                                 </button>
-                                                <button onclick="openEditModal(<?= $m['id'] ?>, '<?= $m['phase'] ?>', '<?= $m['group_name'] ?>', <?= $p1Id ?>, <?= $p2Id ?>, '<?= $m['deadline'] ?>', '<?= $currWinnerJs ?>')" class="text-blue-500 hover:text-blue-700 p-1 rounded hover:bg-blue-50" title="Editar">
+                                                <button onclick="openEditModal(<?= $m['id'] ?>, '<?= $m['phase_id'] ?? $m['phase'] ?>', '<?= $m['group_name'] ?>', <?= $p1Id ?>, <?= $p2Id ?>, '<?= $m['deadline'] ?>', '<?= $currWinnerJs ?>')" class="text-blue-500 hover:text-blue-700 p-1 rounded hover:bg-blue-50" title="Editar">
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                                     </svg>
@@ -1400,7 +1542,7 @@ if (is_array($matches)) {
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Fase</label>
                     <select name="edit_phase" id="edit_phase" onchange="toggleEditGroupSelect(this.value)" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm focus:ring-indigo-500 focus:border-indigo-500">
-                        <?php foreach ($fases as $f): ?><option value="<?= $f ?>"><?= $f ?></option><?php endforeach; ?>
+                       <?php foreach ($fases as $f): ?><option value="<?= htmlspecialchars((string)($f['id'] ?? '')) ?>"><?= htmlspecialchars((string)($f['name'] ?? '')) ?></option><?php endforeach; ?>
                     </select>
                 </div>
                 <div id="edit_group_container" class="hidden">
@@ -1466,7 +1608,7 @@ if (is_array($matches)) {
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Fase</label>
                     <select name="clone_phase" id="clone_phase" onchange="toggleCloneGroupSelect(this.value)" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm focus:ring-green-500 focus:border-green-500">
-                        <?php foreach ($fases as $f): ?><option value="<?= $f ?>"><?= $f ?></option><?php endforeach; ?>
+                        <?php foreach ($fases as $f): ?><option value="<?= htmlspecialchars((string)($f['id'] ?? '')) ?>"><?= htmlspecialchars((string)($f['name'] ?? '')) ?></option><?php endforeach; ?>
                     </select>
                 </div>
                 <div id="clone_group_container" class="hidden">
