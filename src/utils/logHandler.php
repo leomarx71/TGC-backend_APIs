@@ -6,7 +6,7 @@
  * Gerenciador de logs centralizado
  */
 
-class LogHandler {
+class logHandler {
     
     const TYPE_BOT = 'botMain.log';
     const TYPE_SECURITY = 'admin-security.log';

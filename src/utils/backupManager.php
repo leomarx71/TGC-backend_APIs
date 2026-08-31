@@ -6,7 +6,7 @@
  * Gerenciador de backups e rotação de temporada
  */
 
-class BackupManager {
+class backupManager {
     
     /**
      * Cria apenas um backup (Snapshot) sem alterar/limpar os dados atuais.
@@ -45,8 +45,8 @@ class BackupManager {
             }
 
             // Tenta logar se a classe existir
-            if (class_exists('LogHandler') && method_exists('LogHandler', 'logSeasonRotation')) {
-                // LogHandler::logBackup($adminId, $timestamp); // Exemplo se existisse
+            if (class_exists('logHandler') && method_exists('logHandler', 'logSeasonRotation')) {
+                // logHandler::logBackup($adminId, $timestamp); // Exemplo se existisse
             }
 
             return [
@@ -135,8 +135,8 @@ class BackupManager {
             }
             
             // === REGISTRAR NO LOG ===
-            if (class_exists('LogHandler') && method_exists('LogHandler', 'logSeasonRotation')) {
-                LogHandler::logSeasonRotation($adminId, $timestamp);
+            if (class_exists('logHandler') && method_exists('logHandler', 'logSeasonRotation')) {
+                logHandler::logSeasonRotation($adminId, $timestamp);
             }
             
             return [
