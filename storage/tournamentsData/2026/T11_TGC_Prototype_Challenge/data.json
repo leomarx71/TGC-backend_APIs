@@ -1,0 +1,10 @@
+{
+  "torneio_id": "T11",
+  "nome": "TGC Prototype Challenge",
+  "subtitle": "World Fastest Drivers' Championship",
+  "formatType": "time-trial",
+  "scoreType": "leaderboard",
+  "totalRounds": 12,
+  "tracksPerRound": 8,
+  "status": "finished"
+}
