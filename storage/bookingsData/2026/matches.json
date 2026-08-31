@@ -1,44 +1,44 @@
 [
     {
         "id": 1,
-        "player_1_ID": 1,
-        "player_2_ID": 2,
-        "group_name": "Grupo 1",
+        "player1ID": 1,
+        "player2ID": 2,
+        "groupName": "Grupo 1",
         "tournament": "T1 - Torneio de Verão: Dakar Series",
         "phase": "Fase de Grupos",
-        "local_track": [
+        "localTrack": [
             "SAM",
             "FRA"
         ],
         "deadline": "2026-01-16 23:59:59",
         "status": "AGENDADO",
-        "winner_id": null,
+        "winnerID": null,
         "createdAt": "2026-01-16 22:14:26"
     },
     {
         "id": 2,
-        "player_1_ID": 2,
-        "player_2_ID": 999,
-        "group_name": "Grupo 1",
+        "player1ID": 2,
+        "player2ID": 999,
+        "groupName": "Grupo 1",
         "tournament": "T1 - Torneio de Verão: Dakar Series",
         "phase": "Fase de Grupos",
-        "local_track": [
+        "localTrack": [
             "SCN",
             "ITA"
         ],
         "deadline": "2026-01-20 23:59:59",
         "status": "PENDENTE",
-        "winner_id": null,
+        "winnerID": null,
         "createdAt": "2026-01-16 22:14:56"
     },
     {
         "id": 3,
-        "player_1_ID": 1,
-        "player_2_ID": 2,
-        "group_name": "Oitavas de Final",
+        "player1ID": 1,
+        "player2ID": 2,
+        "groupName": "Oitavas de Final",
         "tournament": "T3 - La Liga - Série Ouro",
         "phase": "Oitavas de Final",
-        "local_track": [
+        "localTrack": [
             "15 GER - Black Forest",
             "14 GER - Cologne",
             "20 SCN - Oslo",
@@ -48,7 +48,7 @@
         ],
         "deadline": "2026-01-17 23:59:59",
         "status": "PENDENTE",
-        "winner_id": null,
+        "winnerID": null,
         "createdAt": "2026-01-16 23:10:46"
     }
 ]

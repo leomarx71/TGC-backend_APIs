@@ -1,78 +1,78 @@
 [
   {
-    "tournament_id": "T0",
+    "id": "T0",
     "name": "ADM - Bot WhatsApp 🤖 🏁"
   },
   {
-    "tournament_id": "T1",
+    "id": "T1",
     "name": "Torneio de Verão: Dakar Series"
   },
   {
-    "tournament_id": "T2",
+    "id": "T2",
     "name": "American LeMans Series"
   },
   {
-    "tournament_id": "T3",
+    "id": "T3",
     "name": "La Liga - Série Ouro"
   },
   {
-    "tournament_id": "T4",
+    "id": "T4",
     "name": "La Liga - Série Prata"
   },
   {
-    "tournament_id": "T5",
+    "id": "T5",
     "name": "La Liga - Série Bronze"
   },
   {
-    "tournament_id": "T6",
+    "id": "T6",
     "name": "TGC Pole Position"
   },
   {
-    "tournament_id": "T7",
+    "id": "T7",
     "name": "Torneio de Outono: Acropolis Cup"
   },
   {
-    "tournament_id": "T8",
+    "id": "T8",
     "name": "F1 Academy"
   },
   {
-    "tournament_id": "T9",
+    "id": "T9",
     "name": "Copa TGC"
   },
   {
-    "tournament_id": "T10",
+    "id": "T10",
     "name": "TGC Numerado"
   },
   {
-    "tournament_id": "T11",
+    "id": "T11",
     "name": "TGC Prototype Challenge"
   },
   {
-    "tournament_id": "T12",
+    "id": "T12",
     "name": "Torneio de Inverno: Arctic Rally"
   },
   {
-    "tournament_id": "T13",
+    "id": "T13",
     "name": "La Liga - Série Ouro"
   },
   {
-    "tournament_id": "T14",
+    "id": "T14",
     "name": "La Liga - Série Prata"
   },
   {
-    "tournament_id": "T15",
+    "id": "T15",
     "name": "La Liga - Série Bronze"
   },
   {
-    "tournament_id": "T16",
+    "id": "T16",
     "name": "Torneio de Primavera: Targa Florio"
   },
   {
-    "tournament_id": "T17",
+    "id": "T17",
     "name": "Champions Cup"
   },
   {
-    "tournament_id": "T18",
+    "id": "T18",
     "name": "Asia LeMans Series"
   }
 ]
