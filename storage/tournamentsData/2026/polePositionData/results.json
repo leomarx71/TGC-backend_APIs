@@ -1,0 +1,83 @@
+[
+  {
+    "id": 1,
+    "roundId": 1,
+    "pilotId": 1,
+    "totalTime": 1352280,
+
+    "times": {
+      "22": 226950,
+      "26": 224410,
+      "31": 98000,
+      "24": 112530,
+      "19": 82310,
+      "5": 242580,
+      "28": 91900,
+      "13": 273600
+    },
+
+    "proof": {
+      "url": "https://www.twitch.tv/videos/2402647258"
+    },
+    "audit": {
+      "submittedAt": "2025-08-15T22:30:00-03:00",
+      "published": true,
+      "publishedAt": "2025-08-15T22:30:00-03:00",
+      "approvedBy": 5511993499981
+    }
+  },
+  {
+    "id": 2,
+    "roundId": 2,
+    "pilotId": 2,
+    "totalTime": 1352280,
+
+    "times": {
+      "22": 226950,
+      "26": 224410,
+      "31": 98000,
+      "24": 112530,
+      "19": 82310,
+      "5": 242580,
+      "28": 91900,
+      "13": 273600
+    },
+
+    "proof": {
+      "url": "https://www.twitch.tv/videos/2402647258"
+    },
+    "audit": {
+      "submittedAt": "2025-08-15T22:30:00-03:00",
+      "published": true,
+      "publishedAt": "2025-08-15T22:30:00-03:00",
+      "approvedBy": 5511993499981
+    }
+  },
+  {
+    "id": 3,
+    "roundId": 3,
+    "pilotId": 3,
+    "totalTime": null,
+
+    "times": {
+      "22": null,
+      "26": null,
+      "31": null,
+      "24": null,
+      "19": null,
+      "5": null,
+      "28": null,
+      "13": null
+    },
+
+    "proof": {
+      "url": "https://www.twitch.tv/videos/2402647258"
+    },
+    "audit": {
+      "submittedAt": null,
+      "published": true,
+      "publishedAt": "2025-08-15T22:30:00-03:00",
+      "approvedBy": 5511993499981
+    }
+  }
+]

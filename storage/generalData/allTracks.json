@@ -1,0 +1,162 @@
+[
+  {
+    "id": 1,
+    "pais": "USA",
+    "nome": "Las Vegas"
+  },
+  {
+    "id": 2,
+    "pais": "USA",
+    "nome": "Los Angeles"
+  },
+  {
+    "id": 3,
+    "pais": "USA",
+    "nome": "New York"
+  },
+  {
+    "id": 4,
+    "pais": "USA",
+    "nome": "San Francisco"
+  },
+  {
+    "id": 5,
+    "pais": "SAM",
+    "nome": "Rio"
+  },
+  {
+    "id": 6,
+    "pais": "SAM",
+    "nome": "Machu Picchu"
+  },
+  {
+    "id": 7,
+    "pais": "SAM",
+    "nome": "Chichen Itza"
+  },
+  {
+    "id": 8,
+    "pais": "SAM",
+    "nome": "Rain Forest"
+  },
+  {
+    "id": 9,
+    "pais": "JAP",
+    "nome": "Tokyo"
+  },
+  {
+    "id": 10,
+    "pais": "JAP",
+    "nome": "Hiroshima"
+  },
+  {
+    "id": 11,
+    "pais": "JAP",
+    "nome": "Yokohama"
+  },
+  {
+    "id": 12,
+    "pais": "JAP",
+    "nome": "Kyoto"
+  },
+  {
+    "id": 13,
+    "pais": "GER",
+    "nome": "Munich"
+  },
+  {
+    "id": 14,
+    "pais": "GER",
+    "nome": "Cologne"
+  },
+  {
+    "id": 15,
+    "pais": "GER",
+    "nome": "Black Forest"
+  },
+  {
+    "id": 16,
+    "pais": "GER",
+    "nome": "Frankfurt"
+  },
+  {
+    "id": 17,
+    "pais": "SCN",
+    "nome": "Stockholm"
+  },
+  {
+    "id": 18,
+    "pais": "SCN",
+    "nome": "Copenhagen"
+  },
+  {
+    "id": 19,
+    "pais": "SCN",
+    "nome": "Helsinki"
+  },
+  {
+    "id": 20,
+    "pais": "SCN",
+    "nome": "Oslo"
+  },
+  {
+    "id": 21,
+    "pais": "FRA",
+    "nome": "Paris"
+  },
+  {
+    "id": 22,
+    "pais": "FRA",
+    "nome": "Nice"
+  },
+  {
+    "id": 23,
+    "pais": "FRA",
+    "nome": "Bordeaux"
+  },
+  {
+    "id": 24,
+    "pais": "FRA",
+    "nome": "Monaco"
+  },
+  {
+    "id": 25,
+    "pais": "ITA",
+    "nome": "Pisa"
+  },
+  {
+    "id": 26,
+    "pais": "ITA",
+    "nome": "Rome"
+  },
+  {
+    "id": 27,
+    "pais": "ITA",
+    "nome": "Sicily"
+  },
+  {
+    "id": 28,
+    "pais": "ITA",
+    "nome": "Florence"
+  },
+  {
+    "id": 29,
+    "pais": "UKG",
+    "nome": "London"
+  },
+  {
+    "id": 30,
+    "pais": "UKG",
+    "nome": "Sheffield"
+  },
+  {
+    "id": 31,
+    "pais": "UKG",
+    "nome": "Loch Ness"
+  },
+  {
+    "id": 32,
+    "pais": "UKG",
+    "nome": "Stonehenge"
+  }
+]

@@ -155,7 +155,7 @@ if (!$isAuth) {
 
 // 3. LÓGICA DO DASHBOARD (Listas de apoio)
 $torneios = [
-    "ADM - Bot WhatsApp 🤖 🏁",
+    "T0 - ADM - Bot WhatsApp 🤖 🏁",
     "T1 - Torneio de Verão: Dakar Series",
     "T2 - American LeMans Series",
     "T3 - La Liga - Série Ouro",
