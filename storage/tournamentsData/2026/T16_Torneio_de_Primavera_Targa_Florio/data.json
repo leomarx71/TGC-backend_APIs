@@ -1,0 +1,10 @@
+{
+  "torneio_id": "T16",
+  "nome": "Torneio de Primavera: Targa Florio",
+  "subtitle": "World Fastest Drivers' Championship",
+  "formatType": "time-trial",
+  "scoreType": "leaderboard",
+  "totalRounds": 12,
+  "tracksPerRound": 8,
+  "status": "finished"
+}

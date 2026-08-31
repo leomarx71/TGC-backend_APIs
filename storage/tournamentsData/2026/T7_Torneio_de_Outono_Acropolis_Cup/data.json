@@ -1,0 +1,10 @@
+{
+  "torneio_id": "T7",
+  "nome": "Torneio de Outono: Acropolis Cup",
+  "subtitle": "World Fastest Drivers' Championship",
+  "formatType": "time-trial",
+  "scoreType": "leaderboard",
+  "totalRounds": 12,
+  "tracksPerRound": 8,
+  "status": "finished"
+}

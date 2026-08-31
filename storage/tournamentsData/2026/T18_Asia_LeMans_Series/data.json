@@ -1,0 +1,10 @@
+{
+  "torneio_id": "T18",
+  "nome": "Asia LeMans Series",
+  "subtitle": "World Fastest Drivers' Championship",
+  "formatType": "time-trial",
+  "scoreType": "leaderboard",
+  "totalRounds": 12,
+  "tracksPerRound": 8,
+  "status": "finished"
+}

@@ -1,10 +1,10 @@
 {
-  "torneio_id": "T6",
-  "nome": "TGC Pole Position",
+  "torneio_id": "T10",
+  "nome": "TGC Numerado",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
-  "scoreType" : "leaderboard",
-  "totalRounds" : 12,
+  "scoreType": "leaderboard",
+  "totalRounds": 12,
   "tracksPerRound": 8,
   "status": "finished"
 }

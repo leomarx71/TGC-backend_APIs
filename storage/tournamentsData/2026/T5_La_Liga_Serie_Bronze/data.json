@@ -1,0 +1,10 @@
+{
+  "torneio_id": "T5",
+  "nome": "La Liga - Série Bronze",
+  "subtitle": "World Fastest Drivers' Championship",
+  "formatType": "time-trial",
+  "scoreType": "leaderboard",
+  "totalRounds": 12,
+  "tracksPerRound": 8,
+  "status": "finished"
+}
