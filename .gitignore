@@ -10,8 +10,6 @@
 .env.backup
 
 # Arquivos de dados e logs (sensível)
-/storage/
-storage/*
 
 # Logs (nunca fazer commit)
 *.log
