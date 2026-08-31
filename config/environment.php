@@ -75,7 +75,7 @@ if (!defined('STORAGE_PATH')) {
 
 // Diretórios de armazenamento
 if (!defined('DATA_DIR')) {
-    define('DATA_DIR', $_ENV['DATA_DIR'] ?? STORAGE_PATH . '/json');
+    define('DATA_DIR', $_ENV['DATA_DIR'] ?? STORAGE_PATH . '/bookingsData');
 }
 
 if (!defined('LOG_DIR')) {
@@ -88,23 +88,23 @@ if (!defined('BACKUP_DIR')) {
 
 // Arquivos principais
 if (!defined('FILE_PILOTS')) {
-    define('FILE_PILOTS', DATA_DIR . '/pilots.json');
+    define('FILE_PILOTS', DATA_DIR . '/pilots.bookingsData');
 }
 
 if (!defined('FILE_MATCHES')) {
-    define('FILE_MATCHES', DATA_DIR . '/matches.json');
+    define('FILE_MATCHES', DATA_DIR . '/matches.bookingsData');
 }
 
 if (!defined('FILE_SCHEDULES')) {
-    define('FILE_SCHEDULES', DATA_DIR . '/schedules.json');
+    define('FILE_SCHEDULES', DATA_DIR . '/schedules.bookingsData');
 }
 
 if (!defined('FILE_AUDIT')) {
-    define('FILE_AUDIT', DATA_DIR . '/auditSchedules.json');
+    define('FILE_AUDIT', DATA_DIR . '/auditSchedules.bookingsData');
 }
 
 if (!defined('FILE_SESSIONS')) {
-    define('FILE_SESSIONS', DATA_DIR . '/sessions.json');
+    define('FILE_SESSIONS', DATA_DIR . '/sessions.bookingsData');
 }
 
 if (!defined('FILE_LOG_BOT')) {

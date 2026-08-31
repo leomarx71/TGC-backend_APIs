@@ -1,0 +1,50 @@
+[
+    {
+        "id": 1,
+        "telegram_id": 5511999998888,
+        "nome": "1Leonardo Marques de Andrade",
+        "nickname_TGC": "LeomarxGames",
+        "ativo": 1,
+        "created_at": "2026-01-13 23:30:58"
+    },
+    {
+        "id": 2,
+        "telegram_id": 5511999998888,
+        "nome": "Bot Agendamento",
+        "nickname_TGC": "Teste Agendar Comigo!",
+        "ativo": 1,
+        "created_at": "2026-07-25 00:00:01"
+    },
+    {
+        "id": 3,
+        "telegram_id": null,
+        "nome": "Partida Bônus",
+        "nickname_TGC": "Piloto Bônus",
+        "ativo": 1,
+        "created_at": "1992-01-01 00:00:01"
+    },
+	{
+        "id": 4,
+        "telegram_id": 5511999998888,
+        "nome": "Gisele S M Andrade",
+        "nickname_TGC": "Agendamento Teste",
+        "ativo": 1,
+        "created_at": "2026-01-13 23:30:58"
+    },
+    {
+        "id": 999,
+        "telegram_id": null,
+        "nome": "Ritchie Brennan",
+        "nickname_TGC": "Ritchie (Computer)",
+        "ativo": 1,
+        "created_at": "1992-01-01 00:00:01"
+    },
+    {
+        "id": 1000,
+        "telegram_id": 5511999998888,
+        "nome": "Jhonny Mota Top Gear Games",
+        "nickname_TGC": "Jhonny",
+        "ativo": 1,
+        "created_at": "2026-01-17 01:00:11"
+    }
+]

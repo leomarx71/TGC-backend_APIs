@@ -1,0 +1,39 @@
+[
+    {
+        "id": 1,
+        "match_id": 1,
+        "proposed_by_pilot_id": 1,
+        "data_hora": "2026-01-19 20:15:00",
+        "status": "CONFIRMADO",
+        "created_at": "2026-01-16 22:29:26",
+        "updated_at": "2026-01-16 22:49:04",
+        "action_by_pilot_id": 2
+    },
+    {
+        "match_id": 4,
+        "data_hora": "2026-08-23 16:00:00",
+        "status": "PARTIDA_FINALIZADA",
+        "proposed_by_pilot_id": 1,
+        "created_at": "2026-08-23 12:11:28",
+        "id": 1,
+        "result_winner_id": -1,
+        "result_confirmed_by": "ADMIN_5511993499981",
+        "updated_at": "2026-08-23 23:11:22"
+    },
+    {
+        "match_id": 2,
+        "data_hora": "2026-08-27 08:15:00",
+        "status": "PROPOSTO",
+        "proposed_by_pilot_id": 1,
+        "created_at": "2026-08-27 00:34:25",
+        "id": 2
+    },
+    {
+        "match_id": 3,
+        "data_hora": "2026-08-25 21:15:00",
+        "status": "PROPOSTO",
+        "proposed_by_pilot_id": 1012,
+        "created_at": "2026-08-24 13:01:55",
+        "id": 3
+    }
+]

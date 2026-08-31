@@ -10,10 +10,8 @@
 .env.backup
 
 # Arquivos de dados e logs (sensível)
-storage/backups
-storage/logs
-storage/json
-
+/storage/
+storage/*
 
 # Logs (nunca fazer commit)
 *.log
@@ -31,4 +29,3 @@ Thumbs.db
 *.bak
 *.tmp
 *~
-

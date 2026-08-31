@@ -31,7 +31,7 @@ class BackupManager {
 
         try {
             // Arquivos para backup
-            $filesToBackup = glob(DATA_DIR . '/*.json');
+            $filesToBackup = glob(DATA_DIR . '/*.bookingsData');
 
             foreach ($filesToBackup as $file) {
                 if (file_exists($file)) {
@@ -95,9 +95,9 @@ class BackupManager {
         try {
             // === ARQUIVOS PARA FAZER BACKUP E DEPOIS LIMPAR ===
             $filesToClear = [
-                defined('FILE_MATCHES') ? FILE_MATCHES : DATA_DIR . '/matches.json',
-                defined('FILE_SCHEDULES') ? FILE_SCHEDULES : DATA_DIR . '/schedules.json',
-                defined('FILE_AUDIT') ? FILE_AUDIT : DATA_DIR . '/auditSchedules.json'
+                defined('FILE_MATCHES') ? FILE_MATCHES : DATA_DIR . '/matches.bookingsData',
+                defined('FILE_SCHEDULES') ? FILE_SCHEDULES : DATA_DIR . '/schedules.bookingsData',
+                defined('FILE_AUDIT') ? FILE_AUDIT : DATA_DIR . '/auditSchedules.bookingsData'
             ];
             
             foreach ($filesToClear as $file) {
@@ -119,19 +119,19 @@ class BackupManager {
             }
             
             // === ARQUIVO DE PILOTS - APENAS BACKUP, NÃO LIMPA ===
-            $filePilots = defined('FILE_PILOTS') ? FILE_PILOTS : DATA_DIR . '/pilots.json';
+            $filePilots = defined('FILE_PILOTS') ? FILE_PILOTS : DATA_DIR . '/pilots.bookingsData';
             if (file_exists($filePilots)) {
-                $backupFile = $backupDir . '/pilots.json.backup';
+                $backupFile = $backupDir . '/pilots.bookingsData.backup';
                 @copy($filePilots, $backupFile);
-                $files_backed_up[] = 'pilots.json (backup apenas)';
+                $files_backed_up[] = 'pilots.bookingsData (backup apenas)';
             }
             
             // === ARQUIVO DE SESSIONS - APENAS LIMPEZA ===
-            $fileSessions = defined('FILE_SESSIONS') ? FILE_SESSIONS : DATA_DIR . '/sessions.json';
+            $fileSessions = defined('FILE_SESSIONS') ? FILE_SESSIONS : DATA_DIR . '/sessions.bookingsData';
             if (file_exists($fileSessions)) {
                 $emptyData = json_encode([], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
                 @file_put_contents($fileSessions, $emptyData);
-                $files_cleared[] = 'sessions.json';
+                $files_cleared[] = 'sessions.bookingsData';
             }
             
             // === REGISTRAR NO LOG ===
