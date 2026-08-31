@@ -14,13 +14,13 @@ ini_set('log_errors', 1);
 error_reporting(E_ALL);
 
 if (!defined('BASE_DIR')) define('BASE_DIR', __DIR__);
-if (!defined('DATA_DIR')) define('DATA_DIR', BASE_DIR . '/../storage/json');
+if (!defined('DATA_DIR')) define('DATA_DIR', BASE_DIR . '/../storage/bookingsData');
 if (!defined('LOG_DIR')) define('LOG_DIR', BASE_DIR . '/../storage/logs');
 
-if (!defined('FILE_PILOTS')) define('FILE_PILOTS', DATA_DIR . '/pilots.json');
-if (!defined('FILE_MATCHES')) define('FILE_MATCHES', DATA_DIR . '/matches.json');
-if (!defined('FILE_SCHEDULES')) define('FILE_SCHEDULES', DATA_DIR . '/schedules.json');
-if (!defined('FILE_AUDIT')) define('FILE_AUDIT', DATA_DIR . '/auditSchedules.json');
+if (!defined('FILE_PILOTS')) define('FILE_PILOTS', DATA_DIR . '/pilots.bookingsData');
+if (!defined('FILE_MATCHES')) define('FILE_MATCHES', DATA_DIR . '/matches.bookingsData');
+if (!defined('FILE_SCHEDULES')) define('FILE_SCHEDULES', DATA_DIR . '/schedules.bookingsData');
+if (!defined('FILE_AUDIT')) define('FILE_AUDIT', DATA_DIR . '/auditSchedules.bookingsData');
 if (!defined('FILE_LOG_API')) define('FILE_LOG_API', LOG_DIR . '/agendamentosAPI.log');
 
 function writeLog($msg, $data = null) {
@@ -186,7 +186,7 @@ function isComputerMatch($match) {
 // 3. PROCESSAMENTO DO INPUT
 // =================================================================================
 
-header('Content-Type: application/json');
+header('Content-Type: application/bookingsData');
 $rawInput = file_get_contents('php://input');
 if (empty($rawInput)) {
     $rawInput = @file_get_contents('php://stdin');
@@ -809,7 +809,7 @@ switch ($cmd) {
         $msg .= "⏳ *Lembrete 1:* A janela do seu jogo abrirá 30 minutos ANTES e fechará 30 minutos DEPOIS deste horário escolhido.\n\n";
         $msg .= "⏳ *Lembrete 2:* Mesmo que seu oponente não confirme a tempo, Você deve comparecer no seu horário proposto e enviar o */play $matchId* para registrar que você está disponível.\n\n";
 
-        // 1. Atualizar schedules.json
+        // 1. Atualizar schedules.bookingsData
         $schedules = getJson(FILE_SCHEDULES);
         $existingIndex = -1;
         foreach ($schedules as $idx => $s) {
@@ -833,7 +833,7 @@ switch ($cmd) {
         }
         saveJson(FILE_SCHEDULES, $schedules);
 
-        // 2. Atualizar matches.json
+        // 2. Atualizar matches.bookingsData
         $allMatches = getJson(FILE_MATCHES);
         foreach ($allMatches as &$m) {
             if ($m['id'] == $matchId) {
@@ -862,7 +862,7 @@ switch ($cmd) {
             respond("❌ Falta de parâmetros (ID da partida).");
         }
 
-        // 1. Atualizar schedules.json
+        // 1. Atualizar schedules.bookingsData
         $schedules = getJson(FILE_SCHEDULES);
         $existingIndex = -1;
         foreach ($schedules as $index => $s) {
@@ -881,7 +881,7 @@ switch ($cmd) {
 
         saveJson(FILE_SCHEDULES, $schedules);
 
-        // 2. Atualizar matches.json (Status global da partida)
+        // 2. Atualizar matches.bookingsData (Status global da partida)
         $allMatches = getJson(FILE_MATCHES);
         foreach ($allMatches as &$m) {
             if ($m['id'] == $matchId) {

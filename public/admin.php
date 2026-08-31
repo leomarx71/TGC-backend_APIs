@@ -14,7 +14,7 @@ error_reporting(E_ALL);
 
 // Definição de Diretórios 
 define('BASE_DIR', __DIR__);
-if (!defined('DATA_DIR')) define('DATA_DIR', BASE_DIR . '/../storage/json');
+if (!defined('DATA_DIR')) define('DATA_DIR', BASE_DIR . '/../storage/bookingsData');
 if (!defined('LOG_DIR'))  define('LOG_DIR',  BASE_DIR . '/../storage/logs');
 if (!defined('BACKUP_DIR')) define('BACKUP_DIR', BASE_DIR . '/../storage/backups');
 
@@ -24,10 +24,10 @@ if (!is_dir(LOG_DIR))  mkdir(LOG_DIR, 0755, true);
 if (!is_dir(BACKUP_DIR)) mkdir(BACKUP_DIR, 0755, true);
 
 // Arquivos de Dados
-if (!defined('FILE_PILOTS'))    define('FILE_PILOTS', DATA_DIR . '/pilots.json');
-if (!defined('FILE_MATCHES'))   define('FILE_MATCHES', DATA_DIR . '/matches.json');
-if (!defined('FILE_SCHEDULES')) define('FILE_SCHEDULES', DATA_DIR . '/schedules.json');
-if (!defined('FILE_AUDIT'))     define('FILE_AUDIT', DATA_DIR . '/auditSchedules.json');
+if (!defined('FILE_PILOTS'))    define('FILE_PILOTS', DATA_DIR . '/pilots.bookingsData');
+if (!defined('FILE_MATCHES'))   define('FILE_MATCHES', DATA_DIR . '/matches.bookingsData');
+if (!defined('FILE_SCHEDULES')) define('FILE_SCHEDULES', DATA_DIR . '/schedules.bookingsData');
+if (!defined('FILE_AUDIT'))     define('FILE_AUDIT', DATA_DIR . '/auditSchedules.bookingsData');
 if (!defined('FILE_LOG'))       define('FILE_LOG', LOG_DIR . '/botMain.log');
 
 // Configurações Básicas
@@ -349,7 +349,7 @@ if (isset($_POST['edit_match_id'])) {
                         $m['winner_id'] = intval($newWinnerVal);
                         $m['status'] = 'CONCLUIDO';
                         
-                        // Se definiu vencedor, vamos finalizar o agendamento no schedules.json também para sincronia
+                        // Se definiu vencedor, vamos finalizar o agendamento no schedules.bookingsData também para sincronia
                         foreach ($schedules as &$s) {
                             if ($s['match_id'] == $editId && $s['status'] != 'RECUSADO') {
                                 $s['status'] = 'PARTIDA_FINALIZADA';
