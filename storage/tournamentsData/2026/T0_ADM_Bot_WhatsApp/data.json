@@ -1,6 +1,6 @@
 {
-  "torneio_id": "T0",
-  "nome": "ADM - Bot WhatsApp 🤖 🏁",
+  "tournamentID": "T0",
+  "name": "ADM - Bot WhatsApp 🤖 🏁",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
   "scoreType": "leaderboard",

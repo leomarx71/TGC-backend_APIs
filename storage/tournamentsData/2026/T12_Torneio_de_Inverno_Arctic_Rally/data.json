@@ -1,6 +1,6 @@
 {
-  "torneio_id": "T12",
-  "nome": "Torneio de Inverno: Arctic Rally",
+  "tournamentID": "T12",
+  "name": "Torneio de Inverno: Arctic Rally",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
   "scoreType": "leaderboard",

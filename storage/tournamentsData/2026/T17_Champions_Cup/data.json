@@ -1,6 +1,6 @@
 {
-  "torneio_id": "T17",
-  "nome": "Champions Cup",
+  "tournamentID": "T17",
+  "name": "Champions Cup",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
   "scoreType": "leaderboard",

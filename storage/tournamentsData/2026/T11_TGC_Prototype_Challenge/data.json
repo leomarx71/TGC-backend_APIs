@@ -1,6 +1,6 @@
 {
-  "torneio_id": "T11",
-  "nome": "TGC Prototype Challenge",
+  "tournamentID": "T11",
+  "name": "TGC Prototype Challenge",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
   "scoreType": "leaderboard",

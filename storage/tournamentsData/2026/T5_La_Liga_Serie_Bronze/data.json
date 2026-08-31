@@ -1,6 +1,6 @@
 {
-  "torneio_id": "T5",
-  "nome": "La Liga - Série Bronze",
+  "tournamentID": "T5",
+  "name": "La Liga - Série Bronze",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
   "scoreType": "leaderboard",

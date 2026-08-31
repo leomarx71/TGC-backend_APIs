@@ -1,6 +1,6 @@
 {
-  "torneio_id": "T14",
-  "nome": "La Liga - Série Prata",
+  "tournamentID": "T14",
+  "name": "La Liga - Série Prata",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
   "scoreType": "leaderboard",

@@ -1,6 +1,6 @@
 {
-  "torneio_id": "T10",
-  "nome": "TGC Numerado",
+  "tournamentID": "T10",
+  "name": "TGC Numerado",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
   "scoreType": "leaderboard",

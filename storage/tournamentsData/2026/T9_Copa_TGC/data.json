@@ -1,6 +1,6 @@
 {
-  "torneio_id": "T9",
-  "nome": "Copa TGC",
+  "tournamentID": "T9",
+  "name": "Copa TGC",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
   "scoreType": "leaderboard",

@@ -1,6 +1,6 @@
 {
-  "torneio_id": "T2",
-  "nome": "American LeMans Series",
+  "tournamentID": "T2",
+  "name": "American LeMans Series",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
   "scoreType": "leaderboard",
