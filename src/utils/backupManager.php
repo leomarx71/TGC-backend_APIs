@@ -6,6 +6,10 @@
  * Gerenciador de backups e rotação de temporada
  */
 
+if (!defined('CONFIG_LOADED')) {
+    require_once __DIR__ . '/../config/environment.php';
+}
+
 class backupManager {
     
     /**
@@ -15,8 +19,8 @@ class backupManager {
      * @return array Resultado da operação
      */
     public static function createBackupSnapshot($adminId = 'system') {
-        if (!defined('BACKUP_DIR') || !defined('DATA_DIR')) {
-            return ['success' => false, 'error' => 'Constantes BACKUP_DIR ou DATA_DIR não definidas'];
+        if (!defined('BACKUP_DIR') || !defined('STORAGE_PATH')) {
+            return ['success' => false, 'error' => 'Constantes BACKUP_DIR ou STORAGE_PATH não definidas'];
         }
 
         // Criar pasta de backup com data/hora
@@ -30,23 +34,28 @@ class backupManager {
         $files_backed_up = [];
 
         try {
-            // Arquivos para backup
-            $filesToBackup = glob(DATA_DIR . '/*.bookingsData');
+            // Backup completo da pasta STORAGE_PATH (recursivo)
+            $sourceDir = rtrim(STORAGE_PATH, '/\\');
+            $destDir = $backupDir . '/storage';
 
-            foreach ($filesToBackup as $file) {
-                if (file_exists($file)) {
-                    $filename = basename($file);
-                    $backupFile = $backupDir . '/' . $filename . '.backup';
-                    
-                    if (@copy($file, $backupFile)) {
-                        $files_backed_up[] = $filename;
-                    }
-                }
+            if (!@mkdir($destDir, 0755, true)) {
+                return ['success' => false, 'error' => "Não foi possível criar diretório de backup de storage: $destDir"];
             }
 
-            // Tenta logar se a classe existir
-            if (class_exists('logHandler') && method_exists('logHandler', 'logSeasonRotation')) {
-                // logHandler::logBackup($adminId, $timestamp); // Exemplo se existisse
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($sourceDir, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::SELF_FIRST
+            );
+
+            foreach ($iterator as $item) {
+                $targetPath = $destDir . DIRECTORY_SEPARATOR . $iterator->getSubPathName();
+                if ($item->isDir()) {
+                    @mkdir($targetPath, 0755);
+                } else {
+                    if (@copy($item, $targetPath)) {
+                        $files_backed_up[] = $targetPath;
+                    }
+                }
             }
 
             return [
@@ -54,9 +63,8 @@ class backupManager {
                 'timestamp' => $timestamp,
                 'backup_dir' => $backupDir,
                 'files_backed_up' => $files_backed_up,
-                'message' => "Backup criado com sucesso em: $backupDir"
+                'message' => "Backup completo da pasta storage criado em: $backupDir"
             ];
-
         } catch (Exception $e) {
             return ['success' => false, 'error' => $e->getMessage()];
         }
@@ -95,9 +103,9 @@ class backupManager {
         try {
             // === ARQUIVOS PARA FAZER BACKUP E DEPOIS LIMPAR ===
             $filesToClear = [
-                defined('FILE_MATCHES') ? FILE_MATCHES : DATA_DIR . '/matches.bookingsData',
-                defined('FILE_SCHEDULES') ? FILE_SCHEDULES : DATA_DIR . '/schedules.bookingsData',
-                defined('FILE_AUDIT') ? FILE_AUDIT : DATA_DIR . '/auditSchedules.bookingsData'
+                defined('FILE_MATCHES') ? FILE_MATCHES : DATA_DIR . '/matches.json',
+                defined('FILE_SCHEDULES') ? FILE_SCHEDULES : DATA_DIR . '/schedules.json',
+                defined('FILE_AUDIT') ? FILE_AUDIT : DATA_DIR . '/auditSchedules.json'
             ];
             
             foreach ($filesToClear as $file) {
@@ -119,19 +127,19 @@ class backupManager {
             }
             
             // === ARQUIVO DE PILOTS - APENAS BACKUP, NÃO LIMPA ===
-            $filePilots = defined('FILE_PILOTS') ? FILE_PILOTS : DATA_DIR . '/pilots.bookingsData';
+            $filePilots = defined('FILE_PILOTS') ? FILE_PILOTS : (defined('GENERAL_DATA_DIR') ? GENERAL_DATA_DIR . '/pilots.json' : DATA_DIR . '/pilots.json');
             if (file_exists($filePilots)) {
-                $backupFile = $backupDir . '/pilots.bookingsData.backup';
+                $backupFile = $backupDir . '/pilots.json.backup';
                 @copy($filePilots, $backupFile);
-                $files_backed_up[] = 'pilots.bookingsData (backup apenas)';
+                $files_backed_up[] = 'pilots.json (backup apenas)';
             }
             
             // === ARQUIVO DE SESSIONS - APENAS LIMPEZA ===
-            $fileSessions = defined('FILE_SESSIONS') ? FILE_SESSIONS : DATA_DIR . '/sessions.bookingsData';
+            $fileSessions = defined('FILE_SESSIONS') ? FILE_SESSIONS : DATA_DIR . '/sessions.json';
             if (file_exists($fileSessions)) {
                 $emptyData = json_encode([], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
                 @file_put_contents($fileSessions, $emptyData);
-                $files_cleared[] = 'sessions.bookingsData';
+                $files_cleared[] = 'sessions.json';
             }
             
             // === REGISTRAR NO LOG ===
@@ -153,58 +161,6 @@ class backupManager {
                 'success' => false,
                 'error' => $e->getMessage(),
                 'backup_dir' => $backupDir
-            ];
-        }
-    }
-    
-    /**
-     * Restaurar backup de uma data/hora específica
-     * * @param string $timestamp Data/hora do backup (YYYY-MM-DD_HHiiss)
-     * @return array Resultado
-     */
-    public static function restoreBackup($timestamp) {
-        if (!defined('BACKUP_DIR') || !defined('DATA_DIR')) {
-            return [
-                'success' => false,
-                'error' => 'Constantes não definidas'
-            ];
-        }
-        
-        $backupDir = BACKUP_DIR . '/' . $timestamp;
-        
-        if (!is_dir($backupDir)) {
-            return [
-                'success' => false,
-                'error' => "Backup não encontrado: $backupDir"
-            ];
-        }
-        
-        $filesRestored = [];
-        
-        try {
-            // Restaurar cada arquivo .backup
-            $files = glob($backupDir . '/*.backup');
-            
-            foreach ($files as $backupFile) {
-                $originalName = str_replace('.backup', '', basename($backupFile));
-                $originalFile = DATA_DIR . '/' . $originalName;
-                
-                if (@copy($backupFile, $originalFile)) {
-                    $filesRestored[] = $originalName;
-                }
-            }
-            
-            return [
-                'success' => true,
-                'timestamp' => $timestamp,
-                'files_restored' => $filesRestored,
-                'message' => "Backup restaurado com sucesso!"
-            ];
-            
-        } catch (Exception $e) {
-            return [
-                'success' => false,
-                'error' => $e->getMessage()
             ];
         }
     }

@@ -13,15 +13,13 @@ ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 error_reporting(E_ALL);
 
-if (!defined('BASE_DIR')) define('BASE_DIR', __DIR__);
-if (!defined('DATA_DIR')) define('DATA_DIR', BASE_DIR . '/../storage/bookingsData');
-if (!defined('LOG_DIR')) define('LOG_DIR', BASE_DIR . '/../storage/logs');
+// Carregar Configuração de Ambiente Central
+if (file_exists(__DIR__ . '/../src/config/environment.php')) {
+    require_once __DIR__ . '/../src/config/environment.php';
+}
 
-if (!defined('FILE_PILOTS')) define('FILE_PILOTS', DATA_DIR . '/pilots.bookingsData');
-if (!defined('FILE_MATCHES')) define('FILE_MATCHES', DATA_DIR . '/matches.bookingsData');
-if (!defined('FILE_SCHEDULES')) define('FILE_SCHEDULES', DATA_DIR . '/schedules.bookingsData');
-if (!defined('FILE_AUDIT')) define('FILE_AUDIT', DATA_DIR . '/auditSchedules.bookingsData');
-if (!defined('FILE_LOG_API')) define('FILE_LOG_API', LOG_DIR . '/agendamentosAPI.log');
+if (!defined('BASE_DIR')) define('BASE_DIR', __DIR__);
+if (!defined('FILE_LOG_API')) define('FILE_LOG_API');
 
 function writeLog($msg, $data = null) {
     $date = date('Y-m-d H:i:s');
@@ -32,19 +30,7 @@ function writeLog($msg, $data = null) {
     file_put_contents(FILE_LOG_API, $content . PHP_EOL, FILE_APPEND);
 }
 
-// Carregar .env
-$envFile = __DIR__ . '/../.env';
-if (file_exists($envFile)) {
-    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        if (strpos($line, '#') === 0) continue;
-        if (strpos($line, '=') === false) continue;
-        list($key, $value) = explode('=', $line, 2);
-        $_ENV[trim($key)] = trim($value, ' "\'');
-    }
-}
-
-$secretToken = $_ENV['TELEGRAM_WEBHOOK_SECRET'] ?? '';
+$secretToken = $_ENV['WEBHOOK_SECRET'] ?? '';
 $receivedToken = '';
 $headerName = 'X-Telegram-Bot-API-Secret-Token';
 
@@ -93,7 +79,7 @@ function getNextId($array) {
 function getPilotByTgId($tgId) {
     $pilots = getJson(FILE_PILOTS);
     foreach ($pilots as $p) {
-        if ($p['telegram_id'] == $tgId) return $p;
+        if ($p['phoneNumberID'] == $tgId) return $p;
     }
     return null;
 }
@@ -101,7 +87,7 @@ function getPilotByTgId($tgId) {
 function getTelegramIdByPilotId($pilotId) {
     $pilots = getJson(FILE_PILOTS);
     foreach ($pilots as $p) {
-        if ($p['id'] == $pilotId) return $p['telegram_id'];
+        if ($p['id'] == $pilotId) return $p['phoneNumberID'];
     }
     return null;
 }
@@ -116,7 +102,7 @@ function getPilotById($id, $pilots = null) {
 
 function getPilotDisplayNameByNick($pilot) {
     if (!$pilot) return 'Desconhecido';
-    return !empty($pilot['nickname_TGC']) ? $pilot['nickname_TGC'] : $pilot['nome'];
+    return !empty($pilot['nicknameTGC']) ? $pilot['nicknameTGC'] : $pilot['name'];
 }
 
 function getPilotDisplayName($pilot) {
@@ -186,7 +172,7 @@ function isComputerMatch($match) {
 // 3. PROCESSAMENTO DO INPUT
 // =================================================================================
 
-header('Content-Type: application/bookingsData');
+header('Content-Type: application/json');
 $rawInput = file_get_contents('php://input');
 if (empty($rawInput)) {
     $rawInput = @file_get_contents('php://stdin');
@@ -280,14 +266,14 @@ switch ($cmd) {
             );
         }
         $pilots = getJson(FILE_PILOTS);
-        foreach ($pilots as $p) { if ($p['telegram_id'] == $pilotID) respond("Você já está inscrito."); }
+        foreach ($pilots as $p) { if ($p['phoneNumberID'] == $pilotID) respond("Você já está inscrito."); }
         $newPilot = [
             'id' => getNextId($pilots),
-            'telegram_id' => $pilotID,
+            'phoneNumberID' => $pilotID,
             'nome' => "Piloto API",
             'nickname_TGC' => "Piloto_API",
             'ativo' => 1,
-            'created_at' => date('Y-m-d H:i:s')
+            'createdAt' => date('Y-m-d H:i:s')
         ];
         $pilots[] = $newPilot;
         saveJson(FILE_PILOTS, $pilots);
@@ -309,11 +295,11 @@ switch ($cmd) {
         } else {
             $pilots = getJson(FILE_PILOTS);
             foreach ($pilots as &$p) {
-                if ($p['telegram_id'] == $pilotID) {
+                if ($p['phoneNumberID'] == $pilotID) {
                     if (isset($p['last_nick_change']) && strtotime($p['last_nick_change']) > strtotime('-90 days') && !isAdmin($pilotID)) {
                         respond("⚠️ Alteração bloqueada. Aguarde 90 dias entre mudanças.");
                     }
-                    $p['nickname_TGC'] = $args;
+                    $p['nicknameTGC'] = $args;
                     $p['last_nick_change'] = date('Y-m-d H:i:s');
                     saveJson(FILE_PILOTS, $pilots);
                     respond("✅ Nickname alterado para: *$args*");
@@ -371,8 +357,8 @@ switch ($cmd) {
     case '/usernumber':
         $pilots = getJson(FILE_PILOTS);
         foreach ($pilots as $p) {
-            if ($p['nome'] == $pilotName) {
-                $pilotID = $p['telegram_id'];
+            if ($p['name'] == $pilotName) {
+                $pilotID = $p['phoneNumberID'];
                 respond($pilotID);
             } else {
                 $pilotID=351935525827;
@@ -535,12 +521,12 @@ switch ($cmd) {
                 'player_1' => [
                     'id' => $p1Id,
                     'name' => $nick1,
-                    'telegram_id' => $p1Tg
+                    'phoneNumberID' => $p1Tg
                 ],
                 'player_2' => [
                     'id' => $p2Id,
                     'name' => $nick2,
-                    'telegram_id' => $p2Tg
+                    'phoneNumberID' => $p2Tg
                 ],
                 'state' => 'REQUER_RESULTADO_ADMIN'
             ];
@@ -637,7 +623,7 @@ switch ($cmd) {
                 'status' => 'PARTIDA_FINALIZADA',
                 'result_winner_id' => $winnerId,
                 'result_confirmed_by' => 'ADMIN_' . $pilotID,
-                'created_at' => date('Y-m-d H:i:s'),
+                'createdAt' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s')
             ];
         }
@@ -821,7 +807,7 @@ switch ($cmd) {
             'data_hora' => $dbFormattedDate,
             'status' => 'PROPOSTO',
             'proposed_by_pilot_id' => $currentPilot['id'],
-            'created_at' => date('Y-m-d H:i:s')
+            'createdAt' => date('Y-m-d H:i:s')
         ];
 
         if ($existingIndex >= 0) {

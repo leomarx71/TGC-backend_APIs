@@ -10,7 +10,7 @@ A lógica de recebimento e processamento das chamadas do Telegram não está enc
 O bot utiliza um mecanismo de segurança baseado no header `X-Telegram-Bot-API-Secret-Token`, conforme recomendado pela documentação oficial do Telegram.
 
 - **Header:** `X-Telegram-Bot-API-Secret-Token`
-- **Validação:** O valor recebido no header é comparado com a variável de ambiente `TELEGRAM_WEBHOOK_SECRET` definida no arquivo `.env`.
+- **Validação:** O valor recebido no header é comparado com a variável de ambiente `WEBHOOK_SECRET` definida no arquivo `.env`.
 - **Falha:** Caso o token seja inválido ou ausente, o servidor retorna `HTTP 403 Forbidden` e encerra a execução.
 
 ---
@@ -288,9 +288,4 @@ PARTIDA_FINALIZADA
     ▼
 CONCLUIDO
 ```
-
-## Saída (Chamadas para o Telegram)
-O bot utiliza a função `apiRequest($method, $parameters)` para enviar dados de volta ao Telegram via `POST` para `https://api.telegram.org/bot[TOKEN]/[MÉTODO]`.
-- **Autenticação:** Token do Bot (`TELEGRAM_BOT_TOKEN`) na URL.
-- **Corpo:** JSON enviado via cURL.
 

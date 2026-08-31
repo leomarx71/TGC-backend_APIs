@@ -8,7 +8,7 @@
  */
 
 // Garantir que environment está carregado
-require_once __DIR__ . '/../../config/environment.php';
+require_once __DIR__ . '/../config/environment.php';
 
 class adminAuth {
     
@@ -125,7 +125,7 @@ class adminAuth {
      */
     private static function logFailedAttempt($ip) {
         $logEntry = date('[Y-m-d H:i:s]') . " [LOGIN_FAILED] IP: $ip\n";
-        @file_put_contents(FILE_LOG_SECURITY, $logEntry, FILE_APPEND | LOCK_EX);
+        @file_put_contents(FILE_LOG_BOT, $logEntry, FILE_APPEND | LOCK_EX);
     }
     
     /**
@@ -133,7 +133,7 @@ class adminAuth {
      */
     private static function logSuccessfulLogin($ip) {
         $logEntry = date('[Y-m-d H:i:s]') . " [LOGIN_SUCCESS] IP: $ip\n";
-        @file_put_contents(FILE_LOG_SECURITY, $logEntry, FILE_APPEND | LOCK_EX);
+        @file_put_contents(FILE_LOG_BOT, $logEntry, FILE_APPEND | LOCK_EX);
     }
     
     /**
@@ -141,7 +141,7 @@ class adminAuth {
      */
     private static function logLogout($ip) {
         $logEntry = date('[Y-m-d H:i:s]') . " [LOGOUT] IP: $ip\n";
-        @file_put_contents(FILE_LOG_SECURITY, $logEntry, FILE_APPEND | LOCK_EX);
+        @file_put_contents(FILE_LOG_BOT, $logEntry, FILE_APPEND | LOCK_EX);
     }
     
     /**
@@ -150,7 +150,7 @@ class adminAuth {
     private static function logSecurityWarning($event, $details = []) {
         $detailsStr = json_encode($details);
         $logEntry = date('[Y-m-d H:i:s]') . " [SECURITY_WARNING] $event: $detailsStr\n";
-        @file_put_contents(FILE_LOG_SECURITY, $logEntry, FILE_APPEND | LOCK_EX);
+        @file_put_contents(FILE_LOG_BOT, $logEntry, FILE_APPEND | LOCK_EX);
     }
     
     /**

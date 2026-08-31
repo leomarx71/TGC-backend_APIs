@@ -2,7 +2,7 @@
     {
         "id": 1,
         "timestamp": "2026-01-16 22:29:26",
-        "match_id": 1,
+        "matchID": 1,
         "pilot_id": 1,
         "action": "PROPOSTO",
         "details": "Horário: 2026-01-19 22:00:00"

@@ -12,75 +12,20 @@ error_reporting(E_ALL);
 // 1. CONFIGURAÇÃO E AUTENTICAÇÃO
 // ============================================================
 
-// Definição de Diretórios 
-define('BASE_DIR', __DIR__);
-if (!defined('DATA_DIR')) define('DATA_DIR', BASE_DIR . '/../storage/bookingsData');
-if (!defined('LOG_DIR'))  define('LOG_DIR',  BASE_DIR . '/../storage/logs');
-if (!defined('BACKUP_DIR')) define('BACKUP_DIR', BASE_DIR . '/../storage/backups');
-
-// Cria diretórios se não existirem
-if (!is_dir(DATA_DIR)) mkdir(DATA_DIR, 0755, true);
-if (!is_dir(LOG_DIR))  mkdir(LOG_DIR, 0755, true);
-if (!is_dir(BACKUP_DIR)) mkdir(BACKUP_DIR, 0755, true);
-
-// Arquivos de Dados
-if (!defined('FILE_PILOTS'))    define('FILE_PILOTS', DATA_DIR . '/pilots.bookingsData');
-if (!defined('FILE_MATCHES'))   define('FILE_MATCHES', DATA_DIR . '/matches.bookingsData');
-if (!defined('FILE_SCHEDULES')) define('FILE_SCHEDULES', DATA_DIR . '/schedules.bookingsData');
-if (!defined('FILE_AUDIT'))     define('FILE_AUDIT', DATA_DIR . '/auditSchedules.bookingsData');
-if (!defined('FILE_LOG'))       define('FILE_LOG', LOG_DIR . '/botMain.log');
-
-// Configurações Básicas
-date_default_timezone_set('America/Sao_Paulo');
-
-// --- CORREÇÃO DE CAMINHOS (FIX PATHS) ---
-// O admin.php está em /public, então precisamos subir um nível (../) para acessar /src e /config
-
-// Carregar Configuração de Ambiente
-if (file_exists(__DIR__ . '/../config/environment.php')) {
-    include_once __DIR__ . '/../config/environment.php';
-} elseif (file_exists(__DIR__ . '/config/environment.php')) {
-    include_once __DIR__ . '/config/environment.php'; // Fallback
+// Carregar Configuração de Ambiente Central
+if (file_exists(__DIR__ . '/../src/config/environment.php')) {
+    require_once __DIR__ . '/../src/config/environment.php';
 }
 
-// Carregar logHandler
+// Carregar Utilitários
 if (file_exists(__DIR__ . '/../src/utils/logHandler.php')) {
-    include_once __DIR__ . '/../src/utils/logHandler.php';
-} elseif (file_exists(__DIR__ . '/src/utils/logHandler.php')) {
-    include_once __DIR__ . '/src/utils/logHandler.php'; // Fallback
+    require_once __DIR__ . '/../src/utils/logHandler.php';
 }
-
-// Carregar backupManager
 if (file_exists(__DIR__ . '/../src/utils/backupManager.php')) {
-    include_once __DIR__ . '/../src/utils/backupManager.php';
-} elseif (file_exists(__DIR__ . '/src/utils/backupManager.php')) {
-    include_once __DIR__ . '/src/utils/backupManager.php'; // Fallback
+    require_once __DIR__ . '/../src/utils/backupManager.php';
 }
-
-// Carregar Auth
-if (file_exists(__DIR__ . '/../src/Auth/adminAuth.php')) {
-    include_once __DIR__ . '/../src/Auth/adminAuth.php';
-} elseif (file_exists(__DIR__ . '/src/Auth/adminAuth.php')) {
-    include_once __DIR__ . '/src/Auth/adminAuth.php'; // Fallback
-}
-
-// ============================================================
-// CARREGAR VARIÁVEIS DE AMBIENTE
-// ============================================================
-
-$envFile = __DIR__ . '/../.env';
-if (file_exists($envFile)) {
-    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        if (strpos($line, '#') === 0) continue;
-        if (strpos($line, '=') === false) continue;
-        
-        list($key, $value) = explode('=', $line, 2);
-        $key = trim($key);
-        $value = trim($value, ' "\'');
-        putenv("$key=$value");
-        $_ENV[$key] = $value;
-    }
+if (file_exists(__DIR__ . '/../src/utils/adminAuth.php')) {
+    require_once __DIR__ . '/../src/utils/adminAuth.php';
 }
 
 // Iniciar Sessão
