@@ -1,41 +1,41 @@
 [
   {
     "id": 1,
-    "pais": "USA",
-    "nome": "Estados Unidos"
+    "country": "USA",
+    "name": "Estados Unidos"
   {
     "id": 2,
-    "pais": "SAM",
-    "nome": "América do Sul"
+    "country": "SAM",
+    "name": "América do Sul"
   },
   {
     "id": 3,
-    "pais": "JAP",
-    "nome": "Japão"
+    "country": "JAP",
+    "name": "Japão"
   },
   {
     "id": 4,
-    "pais": "GER",
-    "nome": "Alemanha"
+    "country": "GER",
+    "name": "Alemanha"
   },
   {
     "id": 5,
-    "pais": "SCN",
-    "nome": "Escandinávia"
+    "country": "SCN",
+    "name": "Escandinávia"
   },
   {
     "id": 6,
-    "pais": "FRA",
-    "nome": "França"
+    "country": "FRA",
+    "name": "França"
   },
   {
     "id": 7,
-    "pais": "ITA",
-    "nome": "Itália"
+    "country": "ITA",
+    "name": "Itália"
   },
   {
     "id": 8,
-    "pais": "UKG",
-    "nome": "Reino Unido"
+    "country": "UKG",
+    "name": "Reino Unido"
   }
 ]

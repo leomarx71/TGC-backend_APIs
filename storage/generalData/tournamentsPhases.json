@@ -1,34 +1,34 @@
 [
   {
     "id": "F1",
-    "nome": "Fase de Grupos"
+    "name": "Fase de Grupos"
   },
   {
     "id": "F2",
-    "nome": "Oitavas de Final"
+    "name": "Oitavas de Final"
   },
   {
     "id": "F3",
-    "nome": "Quartas de Final"
+    "name": "Quartas de Final"
   },
   {
     "id": "F4",
-    "nome": "Semifinal"
+    "name": "Semifinal"
   },
   {
     "id": "F5",
-    "nome": "Final"
+    "name": "Final"
   },
   {
     "id": "F6",
-    "nome": "3º Lugar"
+    "name": "3º Lugar"
   },
   {
     "id": "F7",
-    "nome": "Rodada Atual"
+    "name": "Rodada Atual"
   },
   {
     "id": "F8",
-    "nome": "Eliminatórias"
+    "name": "Eliminatórias"
   }
 ]
