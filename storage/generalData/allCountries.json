@@ -1,0 +1,41 @@
+[
+  {
+    "id": 1,
+    "pais": "USA",
+    "nome": "Estados Unidos"
+  {
+    "id": 2,
+    "pais": "SAM",
+    "nome": "América do Sul"
+  },
+  {
+    "id": 3,
+    "pais": "JAP",
+    "nome": "Japão"
+  },
+  {
+    "id": 4,
+    "pais": "GER",
+    "nome": "Alemanha"
+  },
+  {
+    "id": 5,
+    "pais": "SCN",
+    "nome": "Escandinávia"
+  },
+  {
+    "id": 6,
+    "pais": "FRA",
+    "nome": "França"
+  },
+  {
+    "id": 7,
+    "pais": "ITA",
+    "nome": "Itália"
+  },
+  {
+    "id": 8,
+    "pais": "UKG",
+    "nome": "Reino Unido"
+  }
+]

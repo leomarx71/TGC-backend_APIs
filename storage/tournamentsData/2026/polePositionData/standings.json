@@ -1,0 +1,32 @@
+[
+  {
+    "rank": 1,
+    "pilotId": 10,
+    "roundId": 1,
+    "resultId": 1,
+    "points": 20,
+    "published": true,
+    "publishedAt": "2025-08-15T22:30:00-03:00",
+    "approvedBy": 5511993499981
+  },
+  {
+    "rank": 2,
+    "pilotId": 4,
+    "roundId": 1,
+    "resultId": 2,
+    "points": 15,
+    "published": true,
+    "publishedAt": "2025-08-15T22:30:00-03:00",
+    "approvedBy": 5511993499981
+  },
+  {
+    "rank": 1,
+    "pilotId": 3,
+    "roundId": 2,
+    "resultId": 3,
+    "points": 20,
+    "approved": true,
+    "approvedAt": "2025-08-15T22:30:00-03:00",
+    "approvedBy": 5511993499981
+  }
+]
