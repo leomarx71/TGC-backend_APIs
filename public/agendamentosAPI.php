@@ -133,7 +133,7 @@ function formatLocal($localData) {
 function getMatchSchedule($matchId) {
     $schedules = getJson(FILE_SCHEDULES);
     foreach ($schedules as $s) {
-        if ($s['match_id'] == $matchId) return $s;
+        if ($s['matchID'] == $matchId) return $s;
     }
     return null;
 }
@@ -143,8 +143,8 @@ function saveAudit($matchId, $pilotId, $action, $details = '') {
     $audit[] = [
         'id' => getNextId($audit),
         'timestamp' => date('Y-m-d H:i:s'),
-        'match_id' => $matchId,
-        'pilot_id' => $pilotId,
+        'matchID' => $matchId,
+        'pilotID' => $pilotId,
         'action' => $action,
         'details' => $details
     ];
@@ -154,7 +154,7 @@ function saveAudit($matchId, $pilotId, $action, $details = '') {
 function hasAuditAction($matchId, $action, $timeThreshold = null) {
     $audits = getJson(FILE_AUDIT);
     foreach ($audits as $a) {
-        if ($a['match_id'] == $matchId && $a['action'] == $action) {
+        if ($a['matchID'] == $matchId && $a['action'] == $action) {
             if ($timeThreshold && strtotime($a['timestamp']) <= $timeThreshold) continue;
             return true;
         }
@@ -165,7 +165,7 @@ function hasAuditAction($matchId, $action, $timeThreshold = null) {
 // Verifica se a partida é contra o computador (ex: Ritchie / Pole Position)
 function isComputerMatch($match) {
     // Retorna true se um dos IDs for <= 0 (geralmente bots) ou se o torneio tiver 'Pole' no nome
-    return ($match['player_1_id'] <= 0 || $match['player_2_id'] <= 0 || stripos($match['tournament'], 'Pole') !== false);
+    return ($match['player1ID'] <= 0 || $match['player2ID'] <= 0 || stripos($match['tournament'], 'Pole') !== false);
 }
 
 // =================================================================================
@@ -322,7 +322,7 @@ switch ($cmd) {
         }
 
         $myMatches = array_filter($matches, function($m) use ($currentPilot) {
-            return ($m['player_1_id'] == $currentPilot['id'] || $m['player_2_id'] == $currentPilot['id'])
+            return ($m['player1ID'] == $currentPilot['id'] || $m['player2ID'] == $currentPilot['id'])
                 && in_array($m['status'], ['PENDENTE', 'AGENDADO', 'PROPOSTO', 'CONFIRMADO']);
         });
 
@@ -334,16 +334,16 @@ switch ($cmd) {
         $lastKey = array_key_last($myMatches);
 
         foreach ($myMatches as $key => $m) {
-            $p1 = getPilotById($m['player_1_id'], $pilots);
-            $p2 = getPilotById($m['player_2_id'], $pilots);
+            $p1 = getPilotById($m['player1ID'], $pilots);
+            $p2 = getPilotById($m['player2ID'], $pilots);
             $p1Name = getPilotDisplayNameByNick($p1);
             $p2Name = getPilotDisplayNameByNick($p2);
             $sched = getMatchSchedule($m['id']);
             $status = $sched ? "{$sched['status']}" : "⚠️ Aguardando Agendamento";
             $prazo = date('d/m \à\s H:i', strtotime($m['deadline']));
-            $local = formatLocal($m['local_track'] ?? null);
+            $local = formatLocal($m['localTrack'] ?? null);
             $titulo = "{$m['tournament']} - {$m['phase']}";
-            if ($m['group_name'] !== $m['phase'] && $m['phase'] == 'Fase de Grupos') $titulo .= " - {$m['group_name']}";
+            if ($m['groupName'] !== $m['phase'] && $m['phase'] == 'Fase de Grupos') $titulo .= " - {$m['groupName']}";
 
             $msg .= "🆔 *Partida #{$m['id']}*\n👤 {$p1Name} vs {$p2Name} 👤\n🏆 {$titulo}\n⏳ Prazo Final: {$prazo}\n📌 Status: {$status}\n🛣 {$local}\n\n";
             $msg .= "Use */agendar ID* ou */play ID* para gerenciar.\n\n";
@@ -370,13 +370,13 @@ switch ($cmd) {
         $parts = explode(' ', $function);
         $matchId = intval($parts[1] ?? 0);
         if (!$matchId) respond("❌ Use: /audit ID");
-        $audits = array_filter(getJson(FILE_AUDIT), function($a) use ($matchId) { return $a['match_id'] == $matchId; });
+        $audits = array_filter(getJson(FILE_AUDIT), function($a) use ($matchId) { return $a['matchID'] == $matchId; });
         if (empty($audits)) respond("📭 Nenhum registro para partida #$matchId");
         $msg = "🕵️‍♂️ *Auditoria Partida #$matchId*\n\n";
 
         $auditData = [];
         foreach ($audits as $a) {
-            $p = getPilotById($a['pilot_id']);
+            $p = getPilotById($a['pilotID']);
             $nome = getPilotDisplayNameByNick($p);
             $time = date('d/m H:i', strtotime($a['timestamp']));
 
@@ -411,8 +411,8 @@ switch ($cmd) {
             );
         }
 
-        $p1Id = $match['player_1_id'] ;
-        $p2Id = $match['player_2_id'] ;
+        $p1Id = $match['player1ID'];
+        $p2Id = $match['player2ID'];
         $opponent_id = null;
 
         if ($p1Id == $currentPilot['id']) {
@@ -428,11 +428,11 @@ switch ($cmd) {
             'state' => '',
             'nickname' => $nickname,
             'opponent_id' => $opponent_id,
-            'data_hora' => '',
+            'dateTime' => '',
             'tournament' => $match['tournament'],
         ];
 
-        if ($match['player_1_id'] != $currentPilot['id'] && $match['player_2_id'] != $currentPilot['id'] && !isAdmin($pilotID)) {
+        if ($match['player1ID'] != $currentPilot['id'] && $match['player2ID'] != $currentPilot['id'] && !isAdmin($pilotID)) {
             respond("❌ Você não participa desta partida.");
         }
         $sched = getMatchSchedule($matchId);
@@ -440,11 +440,11 @@ switch ($cmd) {
         if (!$sched) respond("❌ Não há agendamentos propostos ou confirmados para a partida #$matchId.\n\nUse /agendar ID para agendar.");
 
         $now = time();
-        $dtTimestamp = strtotime($sched['data_hora']);
+        $dtTimestamp = strtotime($sched['dateTime']);
         $formattedTime = date('d/m H:i', $dtTimestamp);
         $windowStartTime = date('H:i', $dtTimestamp - 1800);
         $windowEndTime = date('H:i', $dtTimestamp + 1800);
-        $responseData['data_hora'] = $formattedTime;
+        $responseData['dateTime'] = $formattedTime;
 
         // Primeiro verifica a janela de tempo, independentemente do status
         if ($now < ($dtTimestamp - 1800)) {
@@ -503,8 +503,8 @@ switch ($cmd) {
             respond("🚫 *Atenção:* Não é necessário informar resultado para partida de Pole Position (contra o Ritchie / Computador).", ['state' => 'ERRO_PARTIDA_COMPUTADOR']);
         }
 
-        $p1Id = $match['player_1_id'] ?? null;
-        $p2Id = $match['player_2_id'] ?? null;
+        $p1Id = $match['player1ID'] ?? null;
+        $p2Id = $match['player2ID'] ?? null;
         $p1 = getPilotById($p1Id);
         $p2 = getPilotById($p2Id);
         $nick1 = getPilotDisplayNameByNick($p1);
@@ -605,11 +605,11 @@ switch ($cmd) {
         $schedules = getJson(FILE_SCHEDULES);
         $schedFound = false;
         foreach ($schedules as &$s) {
-            if ($s['match_id'] == $matchId && ($s['status'] ?? '') != 'RECUSADO') {
+            if ($s['matchID'] == $matchId && ($s['status'] ?? '') != 'RECUSADO') {
                 $s['status'] = 'PARTIDA_FINALIZADA';
-                $s['result_winner_id'] = $winnerId;
-                $s['result_confirmed_by'] = 'ADMIN_' . $pilotID;
-                $s['updated_at'] = date('Y-m-d H:i:s');
+                $s['resultWinnerID'] = $winnerId;
+                $s['resultConfirmedBy'] = 'ADMIN_' . $pilotID;
+                $s['updatedAt'] = date('Y-m-d H:i:s');
                 unset($s['result_temp_winner']);
                 unset($s['result_proposal_by']);
                 $schedFound = true;
@@ -619,12 +619,12 @@ switch ($cmd) {
         if (!$schedFound) {
             $schedules[] = [
                 'id' => getNextId($schedules),
-                'match_id' => $matchId,
+                'matchID' => $matchId,
                 'status' => 'PARTIDA_FINALIZADA',
-                'result_winner_id' => $winnerId,
-                'result_confirmed_by' => 'ADMIN_' . $pilotID,
+                'resultWinnerID' => $winnerId,
+                'resultConfirmedBy' => 'ADMIN_' . $pilotID,
                 'createdAt' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s')
+                'updatedAt' => date('Y-m-d H:i:s')
             ];
         }
         saveJson(FILE_SCHEDULES, $schedules);
@@ -663,7 +663,7 @@ switch ($cmd) {
         $responseData = [
             'match_id' => $matchId,
             'state' => $sched['status'],
-            'opponent_id' => getTelegramIdByPilotId($match['player_2_id'])
+            'opponent_id' => getTelegramIdByPilotId($match['player2ID'])
         ];
 
         if (!$match) {
@@ -675,8 +675,8 @@ switch ($cmd) {
             respond("🚫 *Atenção:* Não é necessário fazer esse agendamento, pois é uma partida de Pole Position (contra o Ritchie / Computador).", ['state' => 'ERRO_PARTIDA_COMPUTADOR']);
         }
 
-        $p1Id = $match['player_1_id'] ?? null;
-        $p2Id = $match['player_2_id'] ?? null;
+        $p1Id = $match['player1ID'] ?? null;
+        $p2Id = $match['player2ID'] ?? null;
 
         if ($p1Id != $currentPilot['id'] && $p2Id != $currentPilot['id']) {
             respond("❌ Esta partida não é sua. \n\nRevise o número com o */partidas*", ['state' => 'ERRO_NAO_PERTENCE']);
@@ -688,8 +688,8 @@ switch ($cmd) {
             $prazo = date('d/m H:i', strtotime($match['deadline']));
 
         } else {
-            $dt = date('d/m H:i', strtotime($sched['data_hora']));
-            $proposerId = $sched['proposed_by_pilot_id'];
+            $dt = date('d/m H:i', strtotime($sched['dateTime']));
+            $proposerId = $sched['proposedByPilotID'];
             $isMeProposer = ($proposerId == $currentPilot['id']);
 
             // Definindo nome do oponente para a mensagem
@@ -744,8 +744,8 @@ switch ($cmd) {
 
         $dbFormattedDate = $dateObj->format('Y-m-d') . ' ' . $timeObj->format('H:i:s');
 
-        $p1Id = $match['player_1_id'] ;
-        $p2Id = $match['player_2_id'] ;
+        $p1Id = $match['player1ID'];
+        $p2Id = $match['player2ID'];
         $opponent_id = null;
 
         if ($p1Id == $currentPilot['id']) {
@@ -761,7 +761,7 @@ switch ($cmd) {
             'state' => '',
             'nickname' => $nickname,
             'opponent_id' => $opponent_id,
-            'data_hora' => $dbFormattedDate,
+            'dateTime' => $dbFormattedDate,
             'tournament' => $match['tournament'],
         ];
 
@@ -799,14 +799,14 @@ switch ($cmd) {
         $schedules = getJson(FILE_SCHEDULES);
         $existingIndex = -1;
         foreach ($schedules as $idx => $s) {
-            if ($s['match_id'] == $matchId) { $existingIndex = $idx; break; }
+            if ($s['matchID'] == $matchId) { $existingIndex = $idx; break; }
         }
 
         $newSchedule = [
-            'match_id' => $matchId,
-            'data_hora' => $dbFormattedDate,
+            'matchID' => $matchId,
+            'dateTime' => $dbFormattedDate,
             'status' => 'PROPOSTO',
-            'proposed_by_pilot_id' => $currentPilot['id'],
+            'proposedByPilotID' => $currentPilot['id'],
             'createdAt' => date('Y-m-d H:i:s')
         ];
 
@@ -830,8 +830,8 @@ switch ($cmd) {
         saveJson(FILE_MATCHES, $allMatches);
 
         // 3. Auditoria
-        $p1Id = $match['player_1_id'] ?? null;
-        $p2Id = $match['player_2_id'] ?? null;
+        $p1Id = $match['player1ID'] ?? null;
+        $p2Id = $match['player2ID'] ?? null;
 
         $opponentId = ($p1Id == $currentPilot['id']) ? $p2Id : $p1Id;
         $opponentName = getPilotDisplayNameByNick(getPilotById($opponentId));
@@ -852,14 +852,14 @@ switch ($cmd) {
         $schedules = getJson(FILE_SCHEDULES);
         $existingIndex = -1;
         foreach ($schedules as $index => $s) {
-            if ($s['match_id'] == $matchId) { $existingIndex = $index; break; }
+            if ($s['matchID'] == $matchId) { $existingIndex = $index; break; }
         }
 
         if ($existingIndex >= 0) {
             // Se já existe, atualiza os dados preservando ID original e quem propôs
             $schedules[$existingIndex]['status'] = 'CONFIRMADO';
-            $schedules[$existingIndex]['updated_at'] = date('Y-m-d H:i:s');
-            $schedules[$existingIndex]['action_by_pilot_id'] = $currentPilot['id'];
+            $schedules[$existingIndex]['updatedAt'] = date('Y-m-d H:i:s');
+            $schedules[$existingIndex]['actionByPilotID'] = $currentPilot['id'];
         } else {
             // Sem fallback de criação, apenas recusa e retorna erro.
             respond("❌ Erro: Não existe nenhuma proposta ativa para ser confirmada.", ['state' => 'ERRO_NENHUMA_PROPOSTA']);
@@ -897,8 +897,7 @@ switch ($cmd) {
             $nickname = getPilotDisplayNameByNick(getPilotById($p1Id));
         }
 
-        $now = time();
-        $dtTimestamp = strtotime($schedules['data_hora']);
+        $dtTimestamp = strtotime($schedules[$existingIndex]['dateTime']);
         $formattedTime = date('d/m H:i', $dtTimestamp);
 
         $responseData = [
@@ -906,7 +905,7 @@ switch ($cmd) {
             'state' => 'CONFIRMADO',
             'nickname' => $nickname,
             'opponent_id' => $opponent_id,
-            'data_hora' => $formattedTime,
+            'dateTime' => $formattedTime,
             'tournament' => $match['tournament'],
         ];
 
