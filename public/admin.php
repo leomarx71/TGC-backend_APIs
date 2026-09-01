@@ -116,9 +116,39 @@ $pistas_disponiveis = [
 ];
 
 // Helpers Seguros
-function getJson($file) { return file_exists($file) ? json_decode(file_get_contents($file), true) : []; }
-function saveJson($file, $data) { file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX); }
-function getNextId($array) { return empty($array) ? 1 : max(array_column($array, 'id')) + 1; }
+// Helpers Seguros e Validações Estritas
+$jsonLoadErrors = [];
+
+function getJson($file) { 
+    global $jsonLoadErrors;
+    if (!file_exists($file)) {
+        $jsonLoadErrors[] = "Arquivo não encontrado: " . basename($file);
+        return [];
+    }
+    $content = file_get_contents($file);
+    if ($content === false) {
+        $jsonLoadErrors[] = "Falha ao ler o arquivo: " . basename($file);
+        return [];
+    }
+    $data = json_decode($content, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        $jsonLoadErrors[] = "JSON inválido/corrompido em " . basename($file) . ": " . json_last_error_msg();
+        return [];
+    }
+    if (!is_array($data)) {
+        $jsonLoadErrors[] = "Estrutura JSON inválida em " . basename($file) . " (esperado array).";
+        return [];
+    }
+    return $data;
+}
+
+function saveJson($file, $data) { 
+    file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX); 
+}
+
+function getNextId($array) { 
+    return empty($array) ? 1 : max(array_column($array, 'id')) + 1; 
+}
 
 function loadTournamentCatalog() {
     $tournaments = getJson(FILE_TOURNAMENTS);
@@ -205,36 +235,56 @@ function getPhaseNameById($id, $phases) {
     return (string) $id;
 }
 
-function normalizeMatchRecord($match, $tournaments, $phases) {
-    if (!is_array($match)) return $match;
-
-    $tournamentId = normalizeTournamentId($match['tournament_id'] ?? ($match['tournament'] ?? ''), $tournaments);
-    $phaseId = normalizePhaseId($match['phase_id'] ?? ($match['phase'] ?? ''), $phases);
-
-    if (!empty($tournamentId)) {
-        $match['tournament_id'] = $tournamentId;
-        $match['tournament'] = getTournamentNameById($tournamentId, $tournaments);
-    }
-    if (!empty($phaseId)) {
-        $match['phase_id'] = $phaseId;
-        $match['phase'] = getPhaseNameById($phaseId, $phases);
+function validateAndCleanMatchRecord($match, $tournaments, $phases, &$validationErrors = []) {
+    if (!is_array($match)) {
+        $validationErrors[] = "Registro de partida não é um array válido.";
+        return null;
     }
 
-    $match['player_1_id'] = $match['player_1_id'] ?? $match['player1ID'] ?? null;
-    $match['player_2_id'] = $match['player_2_id'] ?? $match['player2ID'] ?? null;
-    $match['group_name'] = $match['group_name'] ?? $match['groupName'] ?? null;
-    $match['winner_id'] = $match['winner_id'] ?? $match['winnerID'] ?? null;
-    $match['created_at'] = $match['created_at'] ?? $match['createdAt'] ?? null;
-    $match['local_track'] = $match['local_track'] ?? $match['localTrack'] ?? [];
+    $requiredFields = ['id', 'player1ID', 'player2ID', 'groupName', 'tournamentId', 'phaseId', 'tournament', 'phase', 'localTrack', 'deadline', 'status', 'winnerID', 'createdAt'];
+    $missingFields = [];
+    foreach ($requiredFields as $field) {
+        if (!array_key_exists($field, $match)) {
+            $missingFields[] = $field;
+        }
+    }
 
-    $match['player1ID'] = $match['player_1_id'] ?? $match['player1ID'] ?? 0;
-    $match['player2ID'] = $match['player_2_id'] ?? $match['player2ID'] ?? 0;
-    $match['groupName'] = $match['group_name'] ?? $match['groupName'] ?? '';
-    $match['winnerID'] = $match['winner_id'] ?? $match['winnerID'] ?? null;
-    $match['createdAt'] = $match['created_at'] ?? $match['createdAt'] ?? date('Y-m-d H:i:s');
-    $match['localTrack'] = $match['local_track'] ?? $match['localTrack'] ?? [];
+    $legacySnakeCaseFields = ['player_1_id', 'player_2_id', 'group_name', 'tournament_id', 'phase_id', 'local_track', 'winner_id', 'created_at'];
+    $duplicatedFields = [];
+    foreach ($legacySnakeCaseFields as $snakeField) {
+        if (array_key_exists($snakeField, $match)) {
+            $duplicatedFields[] = $snakeField;
+        }
+    }
 
-    return $match;
+    $matchId = $match['id'] ?? 'Sem ID';
+    if (!empty($missingFields) || !empty($duplicatedFields)) {
+        $msg = "Partida #{$matchId}: ";
+        if (!empty($missingFields)) {
+            $msg .= "Campos obrigatórios ausentes (" . implode(', ', $missingFields) . "). ";
+        }
+        if (!empty($duplicatedFields)) {
+            $msg .= "Base corrompida/duplicada com campos snake_case legados (" . implode(', ', $duplicatedFields) . "). ";
+        }
+        $validationErrors[] = trim($msg);
+    }
+
+    // Retorna a estrutura estrita em CamelCase
+    return [
+        'id' => (int) ($match['id'] ?? 0),
+        'player1ID' => (int) ($match['player1ID'] ?? 0),
+        'player2ID' => (int) ($match['player2ID'] ?? 0),
+        'groupName' => (string) ($match['groupName'] ?? ''),
+        'tournamentId' => (string) ($match['tournamentId'] ?? ''),
+        'phaseId' => (string) ($match['phaseId'] ?? ''),
+        'tournament' => (string) ($match['tournament'] ?? ''),
+        'phase' => (string) ($match['phase'] ?? ''),
+        'localTrack' => is_array($match['localTrack'] ?? null) ? $match['localTrack'] : (is_string($match['localTrack'] ?? null) && $match['localTrack'] !== '' ? [$match['localTrack']] : []),
+        'deadline' => (string) ($match['deadline'] ?? ''),
+        'status' => (string) ($match['status'] ?? 'PENDENTE'),
+        'winnerID' => array_key_exists('winnerID', $match) && $match['winnerID'] !== null ? (int) $match['winnerID'] : null,
+        'createdAt' => (string) ($match['createdAt'] ?? '')
+    ];
 }
 
 function appendAdminAudit($matchId, $action, $details) {
@@ -263,7 +313,7 @@ function tailLog($lines = 50) {
 function getMatchSchedule($matchId, $allSchedules) {
     if (!is_array($allSchedules)) return null;
     foreach ($allSchedules as $s) {
-        $scheduleMatchId = $s['match_id'] ?? $s['matchID'] ?? null;
+        $scheduleMatchId = $s['matchID'] ?? null;
         if ($scheduleMatchId == $matchId) return $s;
     }
     return null;
@@ -273,8 +323,8 @@ function getMatchSchedule($matchId, $allSchedules) {
 function getPilotNameDisplay($id, $pilotsMap) {
     $p = $pilotsMap[$id] ?? null;
     if (!$p) return '??';
-    if (!empty($p['nickname_TGC'])) return $p['nickname_TGC']; 
-    return $p['nome'];
+    if (!empty($p['nicknameTGC'])) return $p['nicknameTGC']; 
+    return $p['name'];
 }
 
 // Helper para formatar bytes
@@ -360,7 +410,7 @@ if (isset($_POST['edit_match_id'])) {
         if ($newWinnerVal !== 'null') {
             $hasActiveSchedule = false;
             foreach ($schedules as $s) {
-                if (($s['match_id'] ?? $s['matchID'] ?? null) == $editId && (($s['status'] ?? '') != 'RECUSADO')) {
+                if (($s['matchID'] ?? null) == $editId && (($s['status'] ?? '') != 'RECUSADO')) {
                     $hasActiveSchedule = true;
                     break;
                 }
@@ -378,36 +428,27 @@ if (isset($_POST['edit_match_id'])) {
 
             foreach($currentMatches as &$m) {
                 if (($m['id'] ?? null) == $editId) {
-                    $m['phase_id'] = $resolvedPhaseId;
+                    $m['phaseId'] = $resolvedPhaseId;
                     $m['phase'] = $resolvedPhaseName;
-                    $m['group_name'] = $newGroupName;
                     $m['groupName'] = $newGroupName;
-                    $m['player_1_id'] = $newP1;
-                    $m['player_2_id'] = $newP2;
                     $m['player1ID'] = $newP1;
                     $m['player2ID'] = $newP2;
                     $m['deadline'] = $newDeadline;
 
                     if ($newWinnerVal === 'null') {
-                        $m['winner_id'] = null;
                         $m['winnerID'] = null;
                         $m['status'] = (($m['status'] ?? '') == 'CONCLUIDO') ? 'PENDENTE' : ($m['status'] ?? 'PENDENTE');
                     } else {
-                        $m['winner_id'] = intval($newWinnerVal);
                         $m['winnerID'] = intval($newWinnerVal);
                         $m['status'] = 'CONCLUIDO';
 
                         foreach ($schedules as &$s) {
-                            $scheduleMatchId = $s['match_id'] ?? $s['matchID'] ?? null;
+                            $scheduleMatchId = $s['matchID'] ?? null;
                             if ($scheduleMatchId == $editId && (($s['status'] ?? '') != 'RECUSADO')) {
-                                $s['match_id'] = $editId;
                                 $s['matchID'] = $editId;
                                 $s['status'] = 'PARTIDA_FINALIZADA';
-                                $s['result_winner_id'] = intval($newWinnerVal);
                                 $s['resultWinnerID'] = intval($newWinnerVal);
-                                $s['result_confirmed_by'] = 'ADMIN_PAINEL';
                                 $s['resultConfirmedBy'] = 'ADMIN_PAINEL';
-                                $s['updated_at'] = date('Y-m-d H:i:s');
                                 $s['updatedAt'] = date('Y-m-d H:i:s');
                             }
                         }
@@ -460,26 +501,20 @@ if (isset($_POST['clone_match_id'])) {
             // Criar nova partida baseada na origem
             $resolvedClonePhaseId = normalizePhaseId($clonePhase, $phases);
             $resolvedClonePhaseName = getPhaseNameById($resolvedClonePhaseId, $phases);
-            $resolvedCloneTournamentId = normalizeTournamentId($sourceMatch['tournament_id'] ?? ($sourceMatch['tournament'] ?? ''), $tournaments);
+            $resolvedCloneTournamentId = normalizeTournamentId($sourceMatch['tournamentId'] ?? ($sourceMatch['tournament'] ?? ''), $tournaments);
             $newMatch = [
                 'id' => getNextId($matches),
-                'player_1_id' => $cloneP1,
-                'player_2_id' => $cloneP2,
                 'player1ID' => $cloneP1,
                 'player2ID' => $cloneP2,
-                'group_name' => $newGroupName,
                 'groupName' => $newGroupName,
-                'tournament_id' => $resolvedCloneTournamentId,
-                'phase_id' => $resolvedClonePhaseId,
+                'tournamentId' => $resolvedCloneTournamentId,
+                'phaseId' => $resolvedClonePhaseId,
                 'tournament' => getTournamentNameById($resolvedCloneTournamentId, $tournaments),
                 'phase' => $resolvedClonePhaseName,
-                'local_track' => $sourceMatch['local_track'], // Copia o local
-                'localTrack' => $sourceMatch['local_track'],
+                'localTrack' => is_array($sourceMatch['localTrack'] ?? null) ? $sourceMatch['localTrack'] : [],
                 'deadline' => $newDeadline,
                 'status' => 'PENDENTE',
-                'winner_id' => null,
                 'winnerID' => null,
-                'created_at' => date('Y-m-d H:i:s'),
                 'createdAt' => date('Y-m-d H:i:s')
             ];
 
@@ -502,18 +537,24 @@ if (isset($_FILES['matches_file']) && $_FILES['matches_file']['error'] === UPLOA
     $newMatches = json_decode($content, true);
 
     if (json_last_error() !== JSON_ERROR_NONE || !is_array($newMatches)) {
-        $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>Erro: Arquivo JSON inválido ou corrompido.</div>";
+        $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>Erro: Arquivo JSON inválido ou corrompido (" . json_last_error_msg() . ").</div>";
     } else {
         $currentMatches = getJson(FILE_MATCHES);
         $currentIds = array_column($currentMatches, 'id');
         $newIds = [];
         $duplicates = [];
+        $structureErrors = [];
+        $sanitizedMatches = [];
         
-        // Validação de Integridade e Duplicidade
-        foreach ($newMatches as $m) {
-            // Verifica se tem ID
+        // Validação de Integridade, Estrutura e Duplicidade
+        foreach ($newMatches as $idx => $m) {
+            if (!is_array($m)) {
+                $structureErrors[] = "Item na posição $idx não é um objeto/array.";
+                continue;
+            }
+
             if (!isset($m['id'])) {
-                $duplicates[] = "Item sem ID";
+                $duplicates[] = "Item na posição $idx sem ID";
                 continue;
             }
             // Verifica duplicidade com o banco atual
@@ -525,22 +566,32 @@ if (isset($_FILES['matches_file']) && $_FILES['matches_file']['error'] === UPLOA
                  $duplicates[] = "#" . $m['id'] . " (Duplicado no arquivo enviado)";
             }
             $newIds[] = $m['id'];
+
+            // Validação estrita de campos requeridos em CamelCase
+            $itemErrors = [];
+            $cleaned = validateAndCleanMatchRecord($m, $tournaments, $phases, $itemErrors);
+            if (!empty($itemErrors)) {
+                $structureErrors = array_merge($structureErrors, $itemErrors);
+            } else {
+                $sanitizedMatches[] = $cleaned;
+            }
         }
 
-        if (!empty($duplicates)) {
-            // Rejeita tudo se houver conflito
-            $listaErros = implode(', ', array_unique($duplicates));
-            $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>🚫 <b>Upload Rejeitado!</b><br>Foram encontrados IDs duplicados:<br><span class='text-xs'>$listaErros</span></div>";
+        if (!empty($duplicates) || !empty($structureErrors)) {
+            // Rejeita tudo se houver conflito ou campos inválidos/duplicados/ausentes
+            $erros = array_merge($duplicates, $structureErrors);
+            $listaErros = implode('<br>', array_map('htmlspecialchars', array_unique($erros)));
+            $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>🚫 <b>Upload Rejeitado!</b><br>Foram encontrados erros de estrutura ou duplicidades:<br><div class='text-xs mt-2 font-mono'>$listaErros</div></div>";
         } else {
             // Sucesso: Merge e Salvar
-            $merged = array_merge($currentMatches, $newMatches);
+            $merged = array_merge($currentMatches, $sanitizedMatches);
             
-            // Ordenar por ID para manter organização (opcional, mas recomendado)
+            // Ordenar por ID para manter organização
             usort($merged, function($a, $b) { return $a['id'] - $b['id']; });
             
             saveJson(FILE_MATCHES, $merged);
-            adminLog("Upload massivo de partidas realizado: " . count($newMatches) . " novas partidas importadas.");
-            $msgFeedback = "<div class='bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4'>✅ <b>Sucesso!</b> " . count($newMatches) . " partidas foram importadas.</div>";
+            adminLog("Upload massivo de partidas realizado: " . count($sanitizedMatches) . " novas partidas importadas.");
+            $msgFeedback = "<div class='bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4'>✅ <b>Sucesso!</b> " . count($sanitizedMatches) . " partidas foram importadas com sucesso.</div>";
         }
     }
 }
@@ -715,23 +766,17 @@ if (isset($_POST['gerar_partidas'])) {
         if (count($order) == 2) {
              $matches[] = [
                 'id' => getNextId($matches),
-                'player_1_id' => intval($order[0]), // Player 1 (Primeiro clicado)
-                'player_2_id' => intval($order[1]), // Player 2 (Segundo clicado)
                 'player1ID' => intval($order[0]),
                 'player2ID' => intval($order[1]),
-                'group_name' => $groupName,
                 'groupName' => $groupName,
-                'tournament_id' => $selTournamentId,
-                'phase_id' => $selPhaseId,
+                'tournamentId' => $selTournamentId,
+                'phaseId' => $selPhaseId,
                 'tournament' => getTournamentNameById($selTournamentId, $tournaments),
                 'phase' => getPhaseNameById($selPhaseId, $phases),
-                'local_track' => $localArray,
                 'localTrack' => $localArray,
                 'deadline' => $prazoFinal,
                 'status' => 'PENDENTE',
-                'winner_id' => null,
                 'winnerID' => null,
-                'created_at' => date('Y-m-d H:i:s'),
                 'createdAt' => date('Y-m-d H:i:s')
             ];
             $novas++;
@@ -741,23 +786,17 @@ if (isset($_POST['gerar_partidas'])) {
                 for ($j = $i + 1; $j < count($order); $j++) {
                     $matches[] = [
                         'id' => getNextId($matches),
-                        'player_1_id' => intval($order[$i]),
-                        'player_2_id' => intval($order[$j]),
                         'player1ID' => intval($order[$i]),
                         'player2ID' => intval($order[$j]),
-                        'group_name' => $groupName,
                         'groupName' => $groupName,
-                        'tournament_id' => $selTournamentId,
-                        'phase_id' => $selPhaseId,
+                        'tournamentId' => $selTournamentId,
+                        'phaseId' => $selPhaseId,
                         'tournament' => getTournamentNameById($selTournamentId, $tournaments),
                         'phase' => getPhaseNameById($selPhaseId, $phases),
-                        'local_track' => $localArray,
                         'localTrack' => $localArray,
                         'deadline' => $prazoFinal,
                         'status' => 'PENDENTE',
-                        'winner_id' => null,
                         'winnerID' => null,
-                        'created_at' => date('Y-m-d H:i:s'),
                         'createdAt' => date('Y-m-d H:i:s')
                     ];
                    $novas++;
@@ -779,10 +818,10 @@ $tournaments = $tournamentCatalog['tournaments'];
 $phases = $tournamentCatalog['phases'];
 $pilots = getJson(FILE_PILOTS);
 
-// ORDENAR PILOTOS ALFABETICAMENTE (Nickname ou Nome) - NOVO
+// ORDENAR PILOTOS ALFABETICAMENTE (Nickname ou name) - NOVO
 usort($pilots, function($a, $b) {
-    $nameA = !empty($a['nickname_TGC']) ? $a['nickname_TGC'] : $a['nome'];
-    $nameB = !empty($b['nickname_TGC']) ? $b['nickname_TGC'] : $b['nome'];
+    $nameA = !empty($a['nicknameTGC']) ? $a['nicknameTGC'] : $a['name'];
+    $nameB = !empty($b['nicknameTGC']) ? $b['nicknameTGC'] : $b['name'];
     return strcasecmp($nameA, $nameB);
 });
 
@@ -792,22 +831,26 @@ $logTail = tailLog(100);
 
 // Carregar Backups (Usando backupManager)
 $backupList = class_exists('backupManager') ? backupManager::listBackups() : [];
+$viewMatches = [];
+$corruptedMatchesErrors = [];
+if (is_array($matches)) {
+    foreach ($matches as $m) {
+        $validationItemErrors = [];
+        $cleanedMatch = validateAndCleanMatchRecord($m, $tournaments, $phases, $validationItemErrors);
+        if (!empty($validationItemErrors)) {
+            $corruptedMatchesErrors = array_merge($corruptedMatchesErrors, $validationItemErrors);
+        }
+        $t = !empty($cleanedMatch['tournament']) ? $cleanedMatch['tournament'] : 'Outros';
+        $f = !empty($cleanedMatch['phase']) ? $cleanedMatch['phase'] : 'Geral';
+        $viewMatches[$t][$f][] = $cleanedMatch;
+    }
+}
+$allIntegrityErrors = array_merge($jsonLoadErrors ?? [], $corruptedMatchesErrors);
 
 $pilotsMap = []; 
 if (is_array($pilots)) {
     foreach ($pilots as $p) $pilotsMap[$p['id']] = $p;
 }
-
-$viewMatches = [];
-if (is_array($matches)) {
-    foreach ($matches as $m) {
-        $normalizedMatch = normalizeMatchRecord($m, $tournaments, $phases);
-        $t = $normalizedMatch['tournament'] ?? 'Outros';
-        $f = $normalizedMatch['phase'] ?? 'Geral';
-        $viewMatches[$t][$f][] = $normalizedMatch;
-    }
-}
-
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -851,28 +894,28 @@ if (is_array($matches)) {
             });
         }
 
-        // Filtro de Partidas (Para Tabela) - NOVO
+        // Filtro de Partidas (Para Tabela)
         function filterMatches() {
             const input = document.getElementById('match_search');
             const filter = input.value.toLowerCase();
             const tournamentBlocks = document.querySelectorAll('.tournament-block');
 
             tournamentBlocks.forEach(block => {
-                let hasVisibleMatch = false;
                 const rows = block.querySelectorAll('.match-row');
+                let blockHasMatch = false;
 
                 rows.forEach(row => {
                     const text = row.innerText.toLowerCase();
                     if (text.includes(filter)) {
                         row.classList.remove('hidden');
-                        hasVisibleMatch = true;
+                        blockHasMatch = true;
                     } else {
                         row.classList.add('hidden');
                     }
                 });
 
-                // Ocultar o bloco do torneio se não houver partidas visíveis
-                if (hasVisibleMatch) {
+                // Se nenhuma partida do bloco bate com o filtro, esconde o bloco do torneio inteiro
+                if (blockHasMatch || filter === '') {
                     block.classList.remove('hidden');
                 } else {
                     block.classList.add('hidden');
@@ -880,8 +923,10 @@ if (is_array($matches)) {
             });
         }
 
-        // Lógica de Seleção de Países (Ordenada)
+        // Lógica de Seleção de Países/Pistas (Ordenada com Badges)
         let paisesOrder = [];
+        let pistasOrder = [];
+
         function handlePaisClick(cb) {
             const val = cb.value;
             if(cb.checked) {
@@ -893,8 +938,6 @@ if (is_array($matches)) {
             updateBadges('pais', paisesOrder);
         }
 
-        // Lógica de Seleção de Pistas (Ordenada)
-        let pistasOrder = [];
         function handlePistaClick(cb) {
             const val = cb.value;
             if(cb.checked) {
@@ -914,8 +957,6 @@ if (is_array($matches)) {
             });
 
             orderArr.forEach((val, index) => {
-                // Escapar IDs que podem ter espaços (pistas têm IDs numéricos simples, países strings)
-                // Usando input[value="..."] selector para achar o pai
                 const input = document.querySelector(`input[name="${type === 'pais' ? 'paises' : 'pistas'}_selected[]"][value="${val}"]`);
                 if(input) {
                     const label = input.closest('label');
@@ -968,7 +1009,7 @@ if (is_array($matches)) {
             const winnerSelect = document.getElementById('edit_winner');
             winnerSelect.innerHTML = ''; // Limpar opções
 
-            // Pegar nomes dos selects de pilotos (hack visual)
+            // Pegar nomes dos selects de pilotos
             const p1Text = document.querySelector(`#edit_p1 option[value='${p1}']`)?.text || "P1 (ID " + p1 + ")";
             const p2Text = document.querySelector(`#edit_p2 option[value='${p2}']`)?.text || "P2 (ID " + p2 + ")";
 
@@ -1060,6 +1101,21 @@ if (is_array($matches)) {
     <div class="max-w-[95%] mx-auto px-2">
         <?= $msgFeedback ?>
 
+        <?php if (!empty($allIntegrityErrors)): ?>
+            <div class="bg-red-100 border-l-4 border-red-600 text-red-800 p-4 mb-6 rounded shadow">
+                <div class="flex items-center mb-2">
+                    <span class="text-xl mr-2">🚨</span>
+                    <h3 class="font-bold text-base">Alerta de Integridade de Dados / Base Corrompida ou Duplicada</h3>
+                </div>
+                <p class="text-xs mb-2">Foram detectados erros de leitura de arquivos ou inconsistências na base de dados (campos ausentes ou legados duplicados):</p>
+                <ul class="list-disc list-inside text-xs font-mono space-y-1 bg-red-50 p-3 rounded border border-red-200">
+                    <?php foreach (array_unique($allIntegrityErrors) as $err): ?>
+                        <li><?= htmlspecialchars($err) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
+
         <!-- FORMULÁRIO DE GERAÇÃO -->
         <form method="POST" class="bg-white shadow-xl rounded-lg overflow-hidden mb-10 border border-gray-200">
             <div class="bg-indigo-50 px-6 py-4 border-b border-indigo-100 flex justify-between items-center">
@@ -1077,7 +1133,7 @@ if (is_array($matches)) {
                 <div class="p-5">
                     <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">1. Torneio</label>
                     <select name="tournament" class="block w-full border-gray-300 rounded border bg-gray-50 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
-                        <?php foreach ($torneios as $t): ?>
+                        <?php foreach ($tournaments as $t): ?>
                             <option value="<?= htmlspecialchars((string)($t['id'] ?? '')) ?>"><?= htmlspecialchars((string)($t['name'] ?? '')) ?></option>
                         <?php endforeach; ?>
                     </select>
@@ -1087,7 +1143,7 @@ if (is_array($matches)) {
                 <div class="p-5">
                     <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">2. Fase</label>
                     <select name="phase" onchange="toggleGroupSelect(this.value)" class="block w-full border-gray-300 rounded border py-2 mb-3 text-sm">
-                        <?php foreach ($fases as $f): ?><option value="<?= htmlspecialchars((string)($f['id'] ?? '')) ?>"><?= htmlspecialchars((string)($f['name'] ?? '')) ?></option><?php endforeach; ?>
+                        <?php foreach ($phases as $f): ?><option value="<?= htmlspecialchars((string)($f['id'] ?? '')) ?>"><?= htmlspecialchars((string)($f['name'] ?? '')) ?></option><?php endforeach; ?>
                     </select>
                     <div id="group_container">
                         <select name="group_num" class="block w-full border-gray-300 rounded bg-gray-50 py-2 text-sm">
@@ -1108,9 +1164,9 @@ if (is_array($matches)) {
                     <div id="pilots_list" class="max-h-60 overflow-y-auto border border-gray-200 rounded bg-white p-2 space-y-1">
                         <?php if(empty($pilots)): ?><p class="text-xs text-red-500 text-center py-4">Sem pilotos cadastrados.</p><?php else: ?>
                             <?php foreach ($pilots as $p): 
-                                $displayLabel = htmlspecialchars($p['nome']);
-                                if (!empty($p['nickname_TGC'])) {
-                                    $displayLabel = "<b>" . htmlspecialchars($p['nickname_TGC']) . "</b> <span class='text-gray-400 text-[10px]'>(" . htmlspecialchars($p['nome']) . ")</span>";
+                                $displayLabel = htmlspecialchars($p['name']);
+                                if (!empty($p['nicknameTGC'])) {
+                                    $displayLabel = "<b>" . htmlspecialchars($p['nicknameTGC']) . "</b> <span class='text-gray-400 text-[10px]'>(" . htmlspecialchars($p['name']) . ")</span>";
                                 }
                             ?>
                                 <label class="flex items-center space-x-2 p-1.5 hover:bg-indigo-50 rounded cursor-pointer transition-colors border border-transparent hover:border-indigo-100">
@@ -1231,7 +1287,7 @@ if (is_array($matches)) {
             <?php foreach ($viewMatches as $torneioName => $fasesDoTorneio): ?>
                 <div class="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200 tournament-block">
                     <div class="bg-gray-800 text-white px-4 py-3 font-bold flex justify-between items-center">
-                        <span class="tracking-wide"><?= $torneioName ?></span>
+                        <span class="tracking-wide"><?= htmlspecialchars($torneioName) ?></span>
                     </div>
                     
                     <div class="overflow-x-auto">
@@ -1251,69 +1307,66 @@ if (is_array($matches)) {
                             <tbody class="divide-y divide-gray-100 text-sm text-gray-700">
                                 <?php foreach ($fasesDoTorneio as $faseName => $lista): ?>
                                     <?php foreach ($lista as $m): 
-                                        // Uso estrito de P1 e P2 (sem fallback)
-                                        $p1Id = $m['player_1_id'] ?? null;
-                                        $p2Id = $m['player_2_id'] ?? null;
+                                        $p1Id = $m['player1ID'] ?? 0;
+                                        $p2Id = $m['player2ID'] ?? 0;
                                         
                                         $pA = getPilotNameDisplay($p1Id, $pilotsMap);
                                         $pB = getPilotNameDisplay($p2Id, $pilotsMap);
                                         
                                         // Formatar Local
                                         $localDisplay = "Livre";
-                                        if (is_array($m['local_track']) && !empty($m['local_track'])) {
-                                            $countLoc = count($m['local_track']);
-                                            $localDisplay = $countLoc > 2 ? $m['local_track'][0] . " (+$countLoc)" : implode(', ', $m['local_track']);
-                                        } elseif (is_string($m['local_track'])) {
-                                            $localDisplay = $m['local_track'];
+                                        if (is_array($m['localTrack']) && !empty($m['localTrack'])) {
+                                            $countLoc = count($m['localTrack']);
+                                            $localDisplay = $countLoc > 2 ? $m['localTrack'][0] . " (+$countLoc)" : implode(', ', $m['localTrack']);
+                                        } elseif (is_string($m['localTrack'])) {
+                                            $localDisplay = $m['localTrack'];
                                         }
 
                                         // Formatar Grupo
                                         $grpDisplay = $faseName;
-                                        if ($m['group_name'] && $m['group_name'] != $faseName) $grpDisplay .= " <span class='text-gray-400'>({$m['group_name']})</span>";
+                                        if ($m['groupName'] && $m['groupName'] != $faseName) $grpDisplay .= " <span class='text-gray-400'>({$m['groupName']})</span>";
                                         
                                         // Buscar Agendamento
                                         $sched = getMatchSchedule($m['id'], $schedules);
                                         $schedHtml = "<span class='text-gray-400 italic text-xs'>Sem agendamento</span>";
                                         
                                         if ($sched) {
-                                            $dtTimestamp = strtotime($sched['data_hora']);
-                                            $dt = date('d/m H:i', $dtTimestamp);
-                                            $quemPropos = getPilotNameDisplay($sched['proposed_by_pilot_id'], $pilotsMap);
+                                            $dtTimestamp = !empty($sched['bookDate']) ? strtotime($sched['bookDate']) : 0;
+                                            $dt = $dtTimestamp ? date('d/m H:i', $dtTimestamp) : 'Data N/D';
+                                            $quemPropos = getPilotNameDisplay($sched['pilotID'] ?? 0, $pilotsMap);
                                             
-                                            // Check for expiration (JOGO_NAO_REALIZADO logic)
+                                            // Check for expiration
                                             $isExpired = false;
-                                            if ($sched['status'] == 'CONFIRMADO') {
+                                            if (($sched['status'] ?? '') == 'CONFIRMADO' && $dtTimestamp > 0) {
                                                 $windowEnd = $dtTimestamp + 1800; // +30 min
                                                 if (time() > $windowEnd) {
                                                     $isExpired = true;
                                                 }
                                             }
 
-                                            if ($sched['status'] == 'PARTIDA_FINALIZADA') {
-                                                $winId = $sched['result_winner_id'] ?? 0;
+                                            if (($sched['status'] ?? '') == 'PARTIDA_FINALIZADA') {
+                                                $winId = $sched['resultWinnerID'] ?? 0;
                                                 $winName = $winId ? getPilotNameDisplay($winId, $pilotsMap) : 'Admin';
                                                 if ($winId == 0) {
                                                     $winName = 'EMPATE';
-                                                    $schedHtml = "<div class='flex flex-col items-start gap-1'>
-                                                                    <span class='bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs font-bold border border-emerald-200'>🏁 FINALIZADA</span>
-                                                                    <span class='text-xs font-bold text-emerald-600'>🏆 {$winName}</span>
-                                                                  </div>";
-                                                } elseif ($winId == -1) $winName = 'W.O. Duplo';
+                                                } elseif ($winId == -1) {
+                                                    $winName = 'W.O. Duplo';
+                                                }
                                                 $schedHtml = "<div class='flex flex-col items-start gap-1'>
                                                                 <span class='bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs font-bold border border-emerald-200'>🏁 FINALIZADA</span>
                                                                 <span class='text-xs font-bold text-emerald-600'>🏆 {$winName}</span>
                                                               </div>";
-                                            } elseif ($sched['status'] == 'RESULTADO_EM_DISPUTA') {
+                                            } elseif (($sched['status'] ?? '') == 'RESULTADO_EM_DISPUTA') {
                                                 $schedHtml = "<div class='flex flex-col items-start gap-1'>
                                                                 <span class='bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-bold border border-red-200 animate-pulse'>🚨 EM DISPUTA</span>
                                                                 <span class='text-[10px] text-red-600 font-bold'>Verificar Logs!</span>
                                                               </div>";
-                                            } elseif ($sched['status'] == 'RESULTADO_PROPOSTO') {
+                                            } elseif (($sched['status'] ?? '') == 'RESULTADO_PROPOSTO') {
                                                 $schedHtml = "<div class='flex flex-col items-start gap-1'>
                                                                 <span class='bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-xs font-bold border border-yellow-200'>📝 RESULTADO?</span>
                                                                 <span class='text-[10px] text-yellow-600'>Aguardando Conf.</span>
                                                               </div>";
-                                            } elseif ($sched['status'] == 'CONFIRMADO') {
+                                            } elseif (($sched['status'] ?? '') == 'CONFIRMADO') {
                                                 if ($isExpired) {
                                                     $schedHtml = "<div class='flex flex-col items-start gap-1'>
                                                                     <span class='bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-xs font-bold border border-gray-300'>❌ NÃO REALIZADO</span>
@@ -1326,48 +1379,46 @@ if (is_array($matches)) {
                                                                     <span class='text-xs font-mono'>{$dt}</span>
                                                                   </div>";
                                                 }
-                                            } elseif ($sched['status'] == 'PROPOSTO') {
+                                            } elseif (($sched['status'] ?? '') == 'PROPOSTO') {
                                                 $schedHtml = "<div class='flex flex-col items-start gap-1'>
                                                                 <span class='bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold border border-blue-200'>📅 PROPOSTO</span>
                                                                 <span class='text-xs'>{$dt}</span>
                                                                 <span class='text-[9px] text-gray-500'>por {$quemPropos}</span>
                                                               </div>";
                                             } else {
-                                                // Padrão para qualquer outro status desconhecido
                                                 $schedHtml = "<div class='flex flex-col items-start gap-1'>
-                                                                <span class='bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold border border-blue-200'> Status Desconhecido</span>
+                                                                <span class='bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold border border-blue-200'>" . htmlspecialchars($sched['status'] ?? 'Status Desconhecido') . "</span>
                                                                 <span class='text-xs'>{$dt}</span>
                                                               </div>";
                                             }
                                         }
                                         
                                         // Preparar ID do vencedor atual para o modal
-                                        $currWinnerId = $m['winner_id'] ?? '';
-                                        // Precisamos passar 'null' string se for nulo, para o JS entender
-                                        $currWinnerJs = $currWinnerId === null ? 'null' : $currWinnerId;
+                                        $currWinnerId = $m['winnerID'] ?? '';
+                                        $currWinnerJs = ($currWinnerId === null || $currWinnerId === '') ? 'null' : $currWinnerId;
                                     ?>
                                     <tr class="hover:bg-gray-50 transition-colors match-row">
                                         <td class="px-4 py-3 font-mono text-gray-500">#<?= $m['id'] ?></td>
                                         <td class="px-4 py-3"><?= $grpDisplay ?></td>
                                         <td class="px-4 py-3"><span class="font-medium text-indigo-900"><?= $pA ?></span></td>
                                         <td class="px-4 py-3"><span class="font-medium text-indigo-900"><?= $pB ?></span></td>
-                                        <td class="px-4 py-3 text-xs max-w-[150px] truncate" title="<?= is_array($m['local_track']) ? implode(', ', $m['local_track']) : $m['local_track'] ?>">
+                                        <td class="px-4 py-3 text-xs max-w-[150px] truncate" title="<?= is_array($m['localTrack']) ? implode(', ', $m['localTrack']) : $m['localTrack'] ?>">
                                             📍 <?= $localDisplay ?>
                                         </td>
                                         <td class="px-4 py-3 text-xs font-mono text-red-600">
-                                            <?= date('d/m', strtotime($m['deadline'])) ?>
+                                            <?= !empty($m['deadline']) ? date('d/m', strtotime($m['deadline'])) : '--' ?>
                                         </td>
                                         <td class="px-4 py-3">
                                             <?= $schedHtml ?>
                                         </td>
                                         <td class="px-4 py-3 text-right">
                                             <div class="flex items-center justify-end gap-2">
-                                                <button onclick="openCloneModal(<?= $m['id'] ?>, '<?= $m['phase_id'] ?? $m['phase'] ?>', '<?= $m['group_name'] ?>', <?= $p1Id ?>, <?= $p2Id ?>, '<?= $m['deadline'] ?>')" class="text-green-500 hover:text-green-700 p-1 rounded hover:bg-green-50" title="Clonar Partida">
+                                                <button onclick="openCloneModal(<?= $m['id'] ?>, '<?= $m['phaseId'] ?? $m['phase'] ?>', '<?= $m['groupName'] ?>', <?= $p1Id ?>, <?= $p2Id ?>, '<?= $m['deadline'] ?>')" class="text-green-500 hover:text-green-700 p-1 rounded hover:bg-green-50" title="Clonar Partida">
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
                                                     </svg>
                                                 </button>
-                                                <button onclick="openEditModal(<?= $m['id'] ?>, '<?= $m['phase_id'] ?? $m['phase'] ?>', '<?= $m['group_name'] ?>', <?= $p1Id ?>, <?= $p2Id ?>, '<?= $m['deadline'] ?>', '<?= $currWinnerJs ?>')" class="text-blue-500 hover:text-blue-700 p-1 rounded hover:bg-blue-50" title="Editar">
+                                                <button onclick="openEditModal(<?= $m['id'] ?>, '<?= $m['phaseId'] ?? $m['phase'] ?>', '<?= $m['groupName'] ?>', <?= $p1Id ?>, <?= $p2Id ?>, '<?= $m['deadline'] ?>', '<?= $currWinnerJs ?>')" class="text-blue-500 hover:text-blue-700 p-1 rounded hover:bg-blue-50" title="Editar">
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                                     </svg>
@@ -1558,7 +1609,7 @@ if (is_array($matches)) {
                         <label class="block text-sm font-bold text-gray-700 mb-1">Player 1</label>
                         <select name="edit_p1" id="edit_p1" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
                             <?php foreach ($pilots as $p): ?>
-                                <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nickname_TGC'] ?: $p['nome']) ?></option>
+                                <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nicknameTGC'] ?: $p['name']) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -1566,7 +1617,7 @@ if (is_array($matches)) {
                         <label class="block text-sm font-bold text-gray-700 mb-1">Player 2</label>
                         <select name="edit_p2" id="edit_p2" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
                             <?php foreach ($pilots as $p): ?>
-                                <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nickname_TGC'] ?: $p['nome']) ?></option>
+                                <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nicknameTGC'] ?: $p['name']) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -1624,7 +1675,7 @@ if (is_array($matches)) {
                         <label class="block text-sm font-bold text-gray-700 mb-1">Player 1</label>
                         <select name="clone_p1" id="clone_p1" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
                             <?php foreach ($pilots as $p): ?>
-                                <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nickname_TGC'] ?: $p['nome']) ?></option>
+                                <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nicknameTGC'] ?: $p['name']) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -1632,7 +1683,7 @@ if (is_array($matches)) {
                         <label class="block text-sm font-bold text-gray-700 mb-1">Player 2</label>
                         <select name="clone_p2" id="clone_p2" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
                             <?php foreach ($pilots as $p): ?>
-                                <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nickname_TGC'] ?: $p['nome']) ?></option>
+                                <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nicknameTGC'] ?: $p['name']) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
