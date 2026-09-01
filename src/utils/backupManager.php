@@ -19,8 +19,8 @@ class backupManager {
      * @return array Resultado da operação
      */
     public static function createBackupSnapshot($adminId = 'system') {
-        if (!defined('BACKUP_DIR') || !defined('STORAGE_PATH')) {
-            return ['success' => false, 'error' => 'Constantes BACKUP_DIR ou STORAGE_PATH não definidas'];
+        if (!defined('BACKUP_DIR') || !defined('BOOKINGS_DATA_DIR') || !defined('TOURNAMENTS_DATA_DIR')) {
+            return ['success' => false, 'error' => 'Constantes BACKUP_DIR, BOOKINGS_DATA_DIR ou TOURNAMENTS_DATA_DIR não definidas'];
         }
 
         // Criar pasta de backup com data/hora
@@ -34,12 +34,36 @@ class backupManager {
         $files_backed_up = [];
 
         try {
-            // Backup completo da pasta STORAGE_PATH (recursivo)
-            $sourceDir = rtrim(STORAGE_PATH, '/\\');
-            $destDir = $backupDir . '/storage';
+            // Backup completo da pasta BOOKINGS_DATA_DIR (recursivo)
+            $sourceDir = rtrim(BOOKINGS_DATA_DIR, '/\\');
+            $destDir = $backupDir . '/bookingsData';
 
             if (!@mkdir($destDir, 0755, true)) {
-                return ['success' => false, 'error' => "Não foi possível criar diretório de backup de storage: $destDir"];
+                return ['success' => false, 'error' => "Não foi possível criar diretório de backup de bookingsData: $destDir"];
+            }
+
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($sourceDir, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::SELF_FIRST
+            );
+
+            foreach ($iterator as $item) {
+                $targetPath = $destDir . DIRECTORY_SEPARATOR . $iterator->getSubPathName();
+                if ($item->isDir()) {
+                    @mkdir($targetPath, 0755);
+                } else {
+                    if (@copy($item, $targetPath)) {
+                        $files_backed_up[] = $targetPath;
+                    }
+                }
+            }
+            
+            // Backup completo da pasta TOURNAMENTS_DATA_DIR (recursivo)
+            $sourceDir = rtrim(TOURNAMENTS_DATA_DIR, '/\\');
+            $destDir = $backupDir . '/tournamentsData';
+
+            if (!@mkdir($destDir, 0755, true)) {
+                return ['success' => false, 'error' => "Não foi possível criar diretório de backup de TOURNAMENTS_DATA_DIR: $destDir"];
             }
 
             $iterator = new RecursiveIteratorIterator(
@@ -63,7 +87,7 @@ class backupManager {
                 'timestamp' => $timestamp,
                 'backup_dir' => $backupDir,
                 'files_backed_up' => $files_backed_up,
-                'message' => "Backup completo da pasta storage criado em: $backupDir"
+                'message' => "Backup completo da pasta bookingsData e tournamentsData criado em: $backupDir"
             ];
         } catch (Exception $e) {
             return ['success' => false, 'error' => $e->getMessage()];
