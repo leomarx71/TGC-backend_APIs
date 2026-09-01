@@ -81,6 +81,10 @@ if (!defined('BOOKINGS_DATA_DIR')) {
     define('BOOKINGS_DATA_DIR', STORAGE_PATH . '/bookingsData/' . SEASON_YEAR);
 }
 
+if (!defined('TOURNAMENTS_DATA_DIR')) {
+    define('TOURNAMENTS_DATA_DIR', STORAGE_PATH . '/tournamentsData/' . SEASON_YEAR);
+}
+
 if (!defined('LOG_DIR')) {
     define('LOG_DIR', STORAGE_PATH . '/logs');
 }
