@@ -152,43 +152,8 @@ function getNextId($array) {
 
 function loadTournamentCatalog() {
     $tournaments = getJson(FILE_TOURNAMENTS);
-    if (!is_array($tournaments) || empty($tournaments)) {
-        $tournaments = [
-            ['id' => 'T0', 'name' => 'ADM - Bot WhatsApp 🤖 🏁'],
-            ['id' => 'T1', 'name' => 'Torneio de Verão: Dakar Series'],
-            ['id' => 'T2', 'name' => 'American LeMans Series'],
-            ['id' => 'T3', 'name' => 'La Liga - Série Ouro'],
-            ['id' => 'T4', 'name' => 'La Liga - Série Prata'],
-            ['id' => 'T5', 'name' => 'La Liga - Série Bronze'],
-            ['id' => 'T6', 'name' => 'TGC Pole Position'],
-            ['id' => 'T7', 'name' => 'Torneio de Outono: Acropolis Cup'],
-            ['id' => 'T8', 'name' => 'F1 Academy'],
-            ['id' => 'T9', 'name' => 'Copa TGC'],
-            ['id' => 'T10', 'name' => 'TGC Numerado'],
-            ['id' => 'T11', 'name' => 'TGC Prototype Challenge'],
-            ['id' => 'T12', 'name' => 'Torneio de Inverno: Arctic Rally'],
-            ['id' => 'T13', 'name' => 'La Liga - Série Ouro'],
-            ['id' => 'T14', 'name' => 'La Liga - Série Prata'],
-            ['id' => 'T15', 'name' => 'La Liga - Série Bronze'],
-            ['id' => 'T16', 'name' => 'Torneio de Primavera: Targa Florio'],
-            ['id' => 'T17', 'name' => 'Champions Cup'],
-            ['id' => 'T18', 'name' => 'Asia LeMans Series']
-        ];
-    }
 
     $phases = getJson(FILE_TOURNAMENTS_PHASES);
-    if (!is_array($phases) || empty($phases)) {
-        $phases = [
-            ['id' => 'F1', 'name' => 'Fase de Grupos'],
-            ['id' => 'F2', 'name' => 'Oitavas de Final'],
-            ['id' => 'F3', 'name' => 'Quartas de Final'],
-            ['id' => 'F4', 'name' => 'Semifinal'],
-            ['id' => 'F5', 'name' => 'Final'],
-            ['id' => 'F6', 'name' => '3º Lugar'],
-            ['id' => 'F7', 'name' => 'Rodada Atual'],
-            ['id' => 'F8', 'name' => 'Eliminatórias']
-        ];
-    }
 
     return ['tournaments' => $tournaments, 'phases' => $phases];
 }
@@ -404,69 +369,49 @@ if (isset($_POST['edit_match_id'])) {
         $schedules = getJson(FILE_SCHEDULES);
         $updated = false;
 
-        // --- TRAVA DE SEGURANÇA: VENCEDOR SEM AGENDAMENTO ---
-        $canSave = true;
+        $newDeadline = $newDate . " 23:59:59";
+        $newGroupName = ($resolvedPhaseId === "F1") ? "Grupo $newGroupNum" : $resolvedPhaseName;
 
-        if ($newWinnerVal !== 'null') {
-            $hasActiveSchedule = false;
-            foreach ($schedules as $s) {
-                if (($s['matchID'] ?? null) == $editId && (($s['status'] ?? '') != 'RECUSADO')) {
-                    $hasActiveSchedule = true;
-                    break;
+        foreach($currentMatches as &$m) {
+            if (($m['id'] ?? null) == $editId) {
+                $m['phaseId'] = $resolvedPhaseId;
+                $m['phase'] = $resolvedPhaseName;
+                $m['groupName'] = $newGroupName;
+                $m['player1ID'] = $newP1;
+                $m['player2ID'] = $newP2;
+                $m['deadline'] = $newDeadline;
+
+                if ($newWinnerVal === 'null') {
+                    $m['winnerID'] = null;
+                    $m['status'] = (($m['status'] ?? '') == 'CONCLUIDO') ? 'PENDENTE' : ($m['status'] ?? 'PENDENTE');
+                } else {
+                    $m['winnerID'] = intval($newWinnerVal);
+                    $m['status'] = 'CONCLUIDO';
+
+                    foreach ($schedules as &$s) {
+                        $scheduleMatchId = $s['matchID'] ?? null;
+                        if ($scheduleMatchId == $editId && (($s['status'] ?? '') != 'RECUSADO')) {
+                            $s['matchID'] = $editId;
+                            $s['status'] = 'PARTIDA_FINALIZADA';
+                            $s['resultWinnerID'] = intval($newWinnerVal);
+                            $s['resultConfirmedBy'] = 'ADMIN_PAINEL';
+                            $s['updatedAt'] = date('Y-m-d H:i:s');
+                        }
+                    }
                 }
-            }
 
-            if (!$hasActiveSchedule) {
-                $canSave = false;
-                $msgFeedback = "<div class='bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4'>⚠️ <b>Ação Bloqueada:</b> Não é possível definir um resultado (Vencedor/Empate/WO) pois esta partida <b>não possui um agendamento ativo</b>.<br><span class='text-xs'>Os pilotos devem agendar a partida primeiro, ou um agendamento deve ser criado manualmente.</span></div>";
+                $updated = true;
+                break;
             }
         }
 
-        if ($canSave) {
-            $newDeadline = $newDate . " 23:59:59";
-            $newGroupName = ($resolvedPhaseId === "F1") ? "Grupo $newGroupNum" : $resolvedPhaseName;
+        if ($updated) {
+            saveJson(FILE_MATCHES, $currentMatches);
+            saveJson(FILE_SCHEDULES, $schedules);
+            appendAdminAudit($editId, 'ADMIN_UPDATE_MATCH', 'Fase: ' . $resolvedPhaseName . ' | Grupo: ' . $newGroupName . ' | Pilotos: ' . $newP1 . ' x ' . $newP2 . ' | Prazo: ' . $newDeadline . ' | Resultado: ' . $newWinnerVal);
 
-            foreach($currentMatches as &$m) {
-                if (($m['id'] ?? null) == $editId) {
-                    $m['phaseId'] = $resolvedPhaseId;
-                    $m['phase'] = $resolvedPhaseName;
-                    $m['groupName'] = $newGroupName;
-                    $m['player1ID'] = $newP1;
-                    $m['player2ID'] = $newP2;
-                    $m['deadline'] = $newDeadline;
-
-                    if ($newWinnerVal === 'null') {
-                        $m['winnerID'] = null;
-                        $m['status'] = (($m['status'] ?? '') == 'CONCLUIDO') ? 'PENDENTE' : ($m['status'] ?? 'PENDENTE');
-                    } else {
-                        $m['winnerID'] = intval($newWinnerVal);
-                        $m['status'] = 'CONCLUIDO';
-
-                        foreach ($schedules as &$s) {
-                            $scheduleMatchId = $s['matchID'] ?? null;
-                            if ($scheduleMatchId == $editId && (($s['status'] ?? '') != 'RECUSADO')) {
-                                $s['matchID'] = $editId;
-                                $s['status'] = 'PARTIDA_FINALIZADA';
-                                $s['resultWinnerID'] = intval($newWinnerVal);
-                                $s['resultConfirmedBy'] = 'ADMIN_PAINEL';
-                                $s['updatedAt'] = date('Y-m-d H:i:s');
-                            }
-                        }
-                    }
-
-                    $updated = true;
-                    break;
-                }
-            }
-
-            if ($updated) {
-                saveJson(FILE_MATCHES, $currentMatches);
-                saveJson(FILE_SCHEDULES, $schedules);
-                appendAdminAudit($editId, 'ADMIN_UPDATE_MATCH', 'Fase: ' . $resolvedPhaseName . ' | Grupo: ' . $newGroupName . ' | Pilotos: ' . $newP1 . ' x ' . $newP2 . ' | Prazo: ' . $newDeadline . ' | Resultado: ' . $newWinnerVal);
-
-                adminLog("Partida #$editId editada.");
-                $msgFeedback = "<div class='bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4'>✏️ Partida <b>#$editId</b> atualizada com sucesso.</div>";
-            }
+            adminLog("Partida #$editId editada.");
+            $msgFeedback = "<div class='bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4'>✏️ Partida <b>#$editId</b> atualizada com sucesso.</div>";
         }
     } else {
         $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>Erro ao editar: Campos obrigatórios faltando.</div>";
@@ -1129,29 +1074,47 @@ if (is_array($pilots)) {
             <input type="hidden" name="pistas_order" id="pistas_order" value="">
 
             <div class="grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-gray-200">
+
                 <!-- 1. TORNEIO -->
                 <div class="p-5">
-                    <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">1. Torneio</label>
-                    <select name="tournament" class="block w-full border-gray-300 rounded border bg-gray-50 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">
+                        1. Torneio
+                    </label>
+                    <select
+                        name="tournament"
+                        class="block w-full border-gray-300 rounded border bg-gray-50 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
                         <?php foreach ($tournaments as $t): ?>
-                            <option value="<?= htmlspecialchars((string)($t['id'] ?? '')) ?>"><?= htmlspecialchars((string)($t['name'] ?? '')) ?></option>
+                            <?php
+                                $tournamentId = (string)($t['id'] ?? '');
+                                $tournamentName = (string)($t['name'] ?? '');
+                            ?>
+                            <option value="<?= htmlspecialchars($tournamentId) ?>">
+                                (<?= htmlspecialchars($tournamentId) ?>) - <?= htmlspecialchars($tournamentName) ?> 
+                            </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
 
                 <!-- 2. FASE -->
                 <div class="p-5">
-                    <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">2. Fase</label>
-                    <select name="phase" onchange="toggleGroupSelect(this.value)" class="block w-full border-gray-300 rounded border py-2 mb-3 text-sm">
-                        <?php foreach ($phases as $f): ?><option value="<?= htmlspecialchars((string)($f['id'] ?? '')) ?>"><?= htmlspecialchars((string)($f['name'] ?? '')) ?></option><?php endforeach; ?>
+                    <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">
+                        2. Fase
+                    </label>
+                    <select
+                        name="phase"
+                        onchange="toggleGroupSelect(this.value)"
+                        class="block w-full border-gray-300 rounded border py-2 mb-3 text-sm">
+                        <?php foreach ($phases as $f): ?>
+                            <?php
+                                $phaseId = (string)($f['id'] ?? '');
+                                $phaseName = (string)($f['name'] ?? '');
+                            ?>
+                            <option value="<?= htmlspecialchars($phaseId) ?>">
+                                (<?= htmlspecialchars($phaseId) ?>) - <?= htmlspecialchars($phaseName) ?> 
+                            </option>
+                        <?php endforeach; ?>
                     </select>
-                    <div id="group_container">
-                        <select name="group_num" class="block w-full border-gray-300 rounded bg-gray-50 py-2 text-sm">
-                            <?php for($g=1; $g<=8; $g++): ?><option value="<?= $g ?>">Grupo <?= $g ?></option><?php endfor; ?>
-                        </select>
-                    </div>
                 </div>
-
                 <!-- 3. PILOTOS (COM NICKNAME) -->
                 <div class="p-5 bg-gray-50/50">
                     <div class="flex justify-between items-center mb-2">
@@ -1344,8 +1307,8 @@ if (is_array($pilots)) {
                                                 }
                                             }
 
-                                            if (($sched['status'] ?? '') == 'PARTIDA_FINALIZADA') {
-                                                $winId = $sched['resultWinnerID'] ?? 0;
+                                            if (($sched['status'] ) == 'PARTIDA_FINALIZADA') {
+                                                $winId = $sched['resultWinnerID'] ;
                                                 $winName = $winId ? getPilotNameDisplay($winId, $pilotsMap) : 'Admin';
                                                 if ($winId == 0) {
                                                     $winName = 'EMPATE';
@@ -1355,16 +1318,6 @@ if (is_array($pilots)) {
                                                 $schedHtml = "<div class='flex flex-col items-start gap-1'>
                                                                 <span class='bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs font-bold border border-emerald-200'>🏁 FINALIZADA</span>
                                                                 <span class='text-xs font-bold text-emerald-600'>🏆 {$winName}</span>
-                                                              </div>";
-                                            } elseif (($sched['status'] ?? '') == 'RESULTADO_EM_DISPUTA') {
-                                                $schedHtml = "<div class='flex flex-col items-start gap-1'>
-                                                                <span class='bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-bold border border-red-200 animate-pulse'>🚨 EM DISPUTA</span>
-                                                                <span class='text-[10px] text-red-600 font-bold'>Verificar Logs!</span>
-                                                              </div>";
-                                            } elseif (($sched['status'] ?? '') == 'RESULTADO_PROPOSTO') {
-                                                $schedHtml = "<div class='flex flex-col items-start gap-1'>
-                                                                <span class='bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-xs font-bold border border-yellow-200'>📝 RESULTADO?</span>
-                                                                <span class='text-[10px] text-yellow-600'>Aguardando Conf.</span>
                                                               </div>";
                                             } elseif (($sched['status'] ?? '') == 'CONFIRMADO') {
                                                 if ($isExpired) {
@@ -1387,12 +1340,25 @@ if (is_array($pilots)) {
                                                               </div>";
                                             } else {
                                                 $schedHtml = "<div class='flex flex-col items-start gap-1'>
-                                                                <span class='bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold border border-blue-200'>" . htmlspecialchars($sched['status'] ?? 'Status Desconhecido') . "</span>
+                                                                <span class='bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-bold border border-red-200'>" . htmlspecialchars('ERRO SCHED STATUS: ' . $sched['status']) . "</span>
                                                                 <span class='text-xs'>{$dt}</span>
                                                               </div>";
                                             }
-                                        }
-                                        
+                                        } else if ( $m['status'] == 'CONCLUIDO') {
+                                                $winId = $m['winnerID'] ;
+                                                $winName = $winId ? getPilotNameDisplay($winId, $pilotsMap) : 'Admin';
+                                                if ($winId == 0) {
+                                                    $winName = 'EMPATE';
+                                                } elseif ($winId == -1) {
+                                                    $winName = 'W.O. Duplo';
+                                                }
+                                                $schedHtml = "<div class='flex flex-col items-start gap-1'>
+                                                                <span class='bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs font-bold border border-emerald-200'>🏁 FINALIZADA</span>
+                                                                <span class='text-xs font-bold text-emerald-600'>🏆 {$winName}</span>
+                                                              </div>";
+                                            } else {
+                                                $schedHtml = "<span class='text-gray-400 italic text-xs'>Sem agendamento</span>";
+                                            }
                                         // Preparar ID do vencedor atual para o modal
                                         $currWinnerId = $m['winnerID'] ?? '';
                                         $currWinnerJs = ($currWinnerId === null || $currWinnerId === '') ? 'null' : $currWinnerId;
