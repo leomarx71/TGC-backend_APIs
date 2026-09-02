@@ -88,7 +88,9 @@ if (!$isAuth) {
                 <div class="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm border-l-4 border-red-500"><?= htmlspecialchars($loginError) ?></div>
             <?php endif; ?>
             <form method="POST">
-                <input type="password" name="admin_password" placeholder="Senha" class="w-full border p-3 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <label>
+                    <input type="password" name="admin_password" placeholder="Senha" class="w-full border p-3 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </label>
                 <button type="submit" name="admin_login" class="w-full bg-indigo-600 text-white p-3 rounded font-bold hover:bg-indigo-700 transition">Entrar</button>
             </form>
         </div>
@@ -435,6 +437,7 @@ if (isset($_POST['clone_match_id'])) {
         $sourceMatch = null;
 
         // Encontrar partida de origem
+        unset($m);
         foreach($matches as $m) {
             if ($m['id'] == $sourceId) {
                 $sourceMatch = $m;
@@ -609,13 +612,10 @@ if (isset($_POST['excluir_backup'])) {
 // --- ADMIN: LIMPAR TUDO (RESET TEMPORADA) ---
 if (isset($_POST['limpar_partidas'])) {
     if (class_exists('backupManager')) {
-        // Criar snapshot (apenas bookings/tournaments) como referência antes de limpar
         $res = backupManager::createBackupSnapshot();
-        // Limpar os arquivos de partidas, agendamentos e auditoria (sem backup completo adicional)
         saveJson(FILE_MATCHES, []);
         saveJson(FILE_SCHEDULES, []);
         saveJson(FILE_AUDIT, []);
-        // Também reiniciar sessions se existir
         if (defined('FILE_SESSIONS')) saveJson(FILE_SESSIONS, []);
 
         adminLog("Temporada resetada pelo Admin. Snapshot de segurança: " . ($res['timestamp'] ?? 'n/a'));
@@ -920,8 +920,7 @@ if (is_array($pilots)) {
 
             // Setar Grupo se for Fase de Grupos
             if (phase === 'F1' || phase === 'Fase de Grupos') {
-                const groupNum = groupName.replace('Grupo ', '');
-                document.getElementById('edit_group_num').value = groupNum;
+                document.getElementById('edit_group_num').value = groupName.replace('Grupo ', '');
             }
 
             // Setar Pilotos
@@ -929,8 +928,7 @@ if (is_array($pilots)) {
             document.getElementById('edit_p2').value = p2;
 
             // Setar Prazo (Apenas data YYYY-MM-DD)
-            const datePart = deadline.split(' ')[0];
-            document.getElementById('edit_deadline').value = datePart;
+            document.getElementById('edit_deadline').value = deadline.split(' ')[0];
 
             // --- LÓGICA VENCEDOR DINÂMICO ---
             const winnerSelect = document.getElementById('edit_winner');
@@ -982,8 +980,7 @@ if (is_array($pilots)) {
 
             // Setar Grupo
             if (phase === 'F1' || phase === 'Fase de Grupos') {
-                const groupNum = groupName.replace('Grupo ', '');
-                document.getElementById('clone_group_num').value = groupNum;
+                document.getElementById('clone_group_num').value = groupName.replace('Grupo ', '');
             }
 
             // Setar Pilotos
@@ -991,8 +988,7 @@ if (is_array($pilots)) {
             document.getElementById('clone_p2').value = p2;
 
             // Setar Prazo
-            const datePart = deadline.split(' ')[0];
-            document.getElementById('clone_deadline').value = datePart;
+            document.getElementById('clone_deadline').value = deadline.split(' ')[0];
 
             document.getElementById('cloneModal').classList.remove('hidden');
         }
@@ -1115,19 +1111,21 @@ if (is_array($pilots)) {
                     <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">
                         1. Torneio
                     </label>
-                    <select
-                        name="tournament"
-                        class="block w-full border-gray-300 rounded border bg-gray-50 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
-                        <?php foreach ($tournaments as $t): ?>
-                            <?php
-                                $tournamentId = (string)($t['id'] ?? '');
-                                $tournamentName = (string)($t['name'] ?? '');
-                            ?>
-                            <option value="<?= htmlspecialchars($tournamentId) ?>">
-                                (<?= htmlspecialchars($tournamentId) ?>) - <?= htmlspecialchars($tournamentName) ?> 
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <label>
+                        <select
+                            name="tournament"
+                            class="block w-full border-gray-300 rounded border bg-gray-50 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <?php foreach ($tournaments as $t): ?>
+                                <?php
+                                    $tournamentId = (string)($t['id'] ?? '');
+                                    $tournamentName = (string)($t['name'] ?? '');
+                                ?>
+                                <option value="<?= htmlspecialchars($tournamentId) ?>">
+                                    (<?= htmlspecialchars($tournamentId) ?>) - <?= htmlspecialchars($tournamentName) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
                 </div>
 
                 <!-- 2. FASE -->
@@ -1135,20 +1133,22 @@ if (is_array($pilots)) {
                     <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">
                         2. Fase
                     </label>
-                    <select
-                        name="phase"
-                        onchange="toggleGroupSelect(this.value)"
-                        class="block w-full border-gray-300 rounded border py-2 mb-3 text-sm">
-                        <?php foreach ($phases as $f): ?>
-                            <?php
-                                $phaseId = (string)($f['id'] ?? '');
-                                $phaseName = (string)($f['name'] ?? '');
-                            ?>
-                            <option value="<?= htmlspecialchars($phaseId) ?>">
-                                (<?= htmlspecialchars($phaseId) ?>) - <?= htmlspecialchars($phaseName) ?> 
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <label>
+                        <select
+                            name="phase"
+                            onchange="toggleGroupSelect(this.value)"
+                            class="block w-full border-gray-300 rounded border py-2 mb-3 text-sm">
+                            <?php foreach ($phases as $f): ?>
+                                <?php
+                                    $phaseId = (string)($f['id'] ?? '');
+                                    $phaseName = (string)($f['name'] ?? '');
+                                ?>
+                                <option value="<?= htmlspecialchars($phaseId) ?>">
+                                    (<?= htmlspecialchars($phaseId) ?>) - <?= htmlspecialchars($phaseName) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
                 </div>
                 <!-- 3. PILOTOS (COM NICKNAME) -->
                 <div class="p-5 bg-gray-50/50">
@@ -1157,6 +1157,7 @@ if (is_array($pilots)) {
                     </div>
                     <!-- CAMPO DE FILTRO (NOVO) -->
                     <div class="mb-2">
+                        <label for="pilot_search"></label>
                         <input type="text" id="pilot_search" placeholder="🔍 Buscar piloto..." onkeyup="filterPilots()" class="w-full border-gray-300 rounded border py-1 px-2 text-xs focus:ring-indigo-500 focus:border-indigo-500">
                     </div>
                     <div id="pilots_list" class="max-h-60 overflow-y-auto border border-gray-200 rounded bg-white p-2 space-y-1">
@@ -1181,11 +1182,12 @@ if (is_array($pilots)) {
                 <div class="p-5 flex flex-col justify-center">
                     <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">4. Prazo</label>
                     <label class="block text-[10px] text-gray-400 mb-1">Data Final para a Partida</label>
-                    <input type="date" name="deadline_date" value="<?= date('Y-m-d') ?>" class="block w-full border-gray-300 rounded border py-3 text-lg font-bold text-center shadow-sm">
+                    <label>
+                        <input type="date" name="deadline_date" value="<?= date('Y-m-d') ?>" class="block w-full border-gray-300 rounded border py-3 text-lg font-bold text-center shadow-sm">
+                    </label>
                 </div>
             </div>
 
-            <!-- 5. LOCAL DA CORRIDA (NOVA SEÇÃO) -->
             <div class="border-t border-gray-200 p-6 bg-gray-50">
                 <label class="block text-xs font-bold text-gray-500 mb-4 uppercase">5. Local da Corrida (Seleção Ordenada)</label>
 
@@ -1272,6 +1274,7 @@ if (is_array($pilots)) {
 
         <!-- CAMPO DE FILTRO PARTIDAS (NOVO) -->
         <div class="mb-6">
+            <label for="match_search"></label>
             <input type="text" id="match_search" placeholder="🔍 Filtrar partidas (ID, Piloto, Torneio...)" onkeyup="filterMatches()" class="w-full border-gray-300 rounded border py-2 px-3 text-xs focus:ring-indigo-500 focus:border-indigo-500">
         </div>
 
@@ -1588,12 +1591,14 @@ if (is_array($pilots)) {
                 <!-- Fase e Grupo -->
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Fase</label>
+                    <label for="edit_phase"></label>
                     <select name="edit_phase" id="edit_phase" onchange="toggleEditGroupSelect(this.value)" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm focus:ring-indigo-500 focus:border-indigo-500">
                        <?php foreach ($fases as $f): ?><option value="<?= htmlspecialchars((string)($f['id'] ?? '')) ?>"><?= htmlspecialchars((string)($f['name'] ?? '')) ?></option><?php endforeach; ?>
                     </select>
                 </div>
                 <div id="edit_group_container" class="hidden">
                     <label class="block text-sm font-bold text-gray-700 mb-1">Número do Grupo</label>
+                    <label for="edit_group_num"></label>
                     <select name="edit_group_num" id="edit_group_num" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
                         <?php for($g=1; $g<=8; $g++): ?><option value="<?= $g ?>"><?= $g ?></option><?php endfor; ?>
                     </select>
@@ -1603,6 +1608,7 @@ if (is_array($pilots)) {
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-1">Player 1</label>
+                        <label for="edit_p1"></label>
                         <select name="edit_p1" id="edit_p1" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
                             <?php foreach ($pilots as $p): ?>
                                 <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nicknameTGC'] ?: $p['name']) ?></option>
@@ -1611,6 +1617,7 @@ if (is_array($pilots)) {
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-1">Player 2</label>
+                        <label for="edit_p2"></label>
                         <select name="edit_p2" id="edit_p2" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
                             <?php foreach ($pilots as $p): ?>
                                 <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nicknameTGC'] ?: $p['name']) ?></option>
@@ -1622,15 +1629,15 @@ if (is_array($pilots)) {
                 <!-- Prazo -->
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Prazo Final</label>
+                    <label for="edit_deadline"></label>
                     <input type="date" name="edit_deadline" id="edit_deadline" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
                 </div>
 
                 <!-- Vencedor / Resultado -->
                 <div class="bg-gray-50 p-3 rounded border border-gray-200">
                     <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Definir Resultado</label>
-                    <select name="edit_winner" id="edit_winner" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm font-bold text-indigo-800">
-                        <!-- Populated via JS -->
-                    </select>
+                    <label for="edit_winner"></label>
+                    <select name="edit_winner" id="edit_winner" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm font-bold text-indigo-800"></select>
                 </div>
 
                 <div class="pt-4 flex justify-end gap-2">
@@ -1654,12 +1661,14 @@ if (is_array($pilots)) {
                 <!-- Fase e Grupo -->
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Fase</label>
+                    <label for="clone_phase"></label>
                     <select name="clone_phase" id="clone_phase" onchange="toggleCloneGroupSelect(this.value)" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm focus:ring-green-500 focus:border-green-500">
                         <?php foreach ($fases as $f): ?><option value="<?= htmlspecialchars((string)($f['id'] ?? '')) ?>"><?= htmlspecialchars((string)($f['name'] ?? '')) ?></option><?php endforeach; ?>
                     </select>
                 </div>
                 <div id="clone_group_container" class="hidden">
                     <label class="block text-sm font-bold text-gray-700 mb-1">Número do Grupo</label>
+                    <label for="clone_group_num"></label>
                     <select name="clone_group_num" id="clone_group_num" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
                         <?php for($g=1; $g<=8; $g++): ?><option value="<?= $g ?>"><?= $g ?></option><?php endfor; ?>
                     </select>
@@ -1669,6 +1678,7 @@ if (is_array($pilots)) {
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-1">Player 1</label>
+                        <label for="clone_p1"></label>
                         <select name="clone_p1" id="clone_p1" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
                             <?php foreach ($pilots as $p): ?>
                                 <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nicknameTGC'] ?: $p['name']) ?></option>
@@ -1677,6 +1687,7 @@ if (is_array($pilots)) {
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-1">Player 2</label>
+                        <label for="clone_p2"></label>
                         <select name="clone_p2" id="clone_p2" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
                             <?php foreach ($pilots as $p): ?>
                                 <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nicknameTGC'] ?: $p['name']) ?></option>
@@ -1688,6 +1699,7 @@ if (is_array($pilots)) {
                 <!-- Prazo -->
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Prazo Final</label>
+                    <label for="clone_deadline"></label>
                     <input type="date" name="clone_deadline" id="clone_deadline" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
                 </div>
                 
