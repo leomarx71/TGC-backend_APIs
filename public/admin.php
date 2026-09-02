@@ -3,7 +3,7 @@
  * PAINEL ADMINISTRATIVO TOP GEAR BOT
  */
 
-// ATIVAR LOGS DE ERRO PARA DEBUG DO ADMIN
+// ATIVAR _Logs_ DE ERRO PARA DEBUG DO ADMIN
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -316,7 +316,7 @@ function getBackupDirSize() {
     return formatBytes($size);
 }
 
-// Helper para logs do admin (Compatibilidade com backupManager)
+// Helper para _Logs_ do admin (Compatibilidade com backupManager)
 function adminLog($msg) {
     $entry = "[" . date('Y-m-d H:i:s') . "] ADMIN: $msg" . PHP_EOL;
     file_put_contents(FILE_LOG_BOT, $entry, FILE_APPEND);
@@ -540,7 +540,7 @@ if (isset($_FILES['matches_file']) && $_FILES['matches_file']['error'] === UPLOA
     }
 }
 
-// --- AÇÃO: BAIXAR LOGS ---
+// --- AÇÃO: BAIXAR _Logs_ ---
 if (isset($_POST['baixar_logs'])) {
     if (file_exists(FILE_LOG_BOT)) {
         header('Content-Description: File Transfer');
@@ -636,7 +636,7 @@ if (isset($_POST['limpar_partidas'])) {
     }
 }
 
-// --- ADMIN: LIMPAR LOGS ---
+// --- ADMIN: LIMPAR _Logs_ ---
 if (isset($_POST['limpar_logs'])) {
     file_put_contents(FILE_LOG_BOT, "[" . date('Y-m-d H:i:s') . "] Log reiniciado pelo Admin." . PHP_EOL);
     $msgFeedback = "<div class='bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-4'>📄 <b>Logs Limpos!</b> Arquivo de log reiniciado.</div>";
@@ -1001,7 +1001,7 @@ if (is_array($pilots)) {
             document.getElementById('clone_group_container').classList.toggle('hidden', val !== 'F1');
         }
 
-        // Modal de Logs e Backups
+        // Modal de _Logs_ e Backups
         function openLogModal() { document.getElementById('logModal').classList.remove('hidden'); }
         function closeLogModal() { document.getElementById('logModal').classList.add('hidden'); }
         function openBackupModal() { document.getElementById('backupModal').classList.remove('hidden'); }
@@ -1329,8 +1329,7 @@ if (is_array($pilots)) {
                                         
                                         // Buscar Agendamento
                                         $sched = getMatchSchedule($m['id'], $schedules);
-                                        $schedHtml = "<span class='text-gray-400 italic text-xs'>Sem agendamento</span>";
-                                        
+
                                         if ($sched) {
                                             $dtTimestamp = !empty($sched['bookDate']) ? strtotime($sched['bookDate']) : 0;
                                             $dt = $dtTimestamp ? date('d/m H:i', $dtTimestamp) : 'Data N/D';
@@ -1355,31 +1354,31 @@ if (is_array($pilots)) {
                                                 }
                                                 $schedHtml = "<div class='flex flex-col items-start gap-1'>
                                                                 <span class='bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs font-bold border border-emerald-200'>🏁 FINALIZADA</span>
-                                                                <span class='text-xs font-bold text-emerald-600'>🏆 {$winName}</span>
+                                                                <span class='text-xs font-bold text-emerald-600'>🏆 $winName</span>
                                                               </div>";
                                             } elseif (($sched['status'] ?? '') == 'CONFIRMADO') {
                                                 if ($isExpired) {
                                                     $schedHtml = "<div class='flex flex-col items-start gap-1'>
                                                                     <span class='bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-xs font-bold border border-gray-300'>❌ NÃO REALIZADO</span>
-                                                                    <span class='text-xs text-red-400 line-through'>{$dt}</span>
+                                                                    <span class='text-xs text-red-400 line-through'>$dt</span>
                                                                     <span class='text-[9px] text-gray-400'>(Expirado)</span>
                                                                   </div>";
                                                 } else {
                                                     $schedHtml = "<div class='flex flex-col items-start gap-1'>
                                                                     <span class='bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold border border-green-200'>✅ CONFIRMADO</span>
-                                                                    <span class='text-xs font-mono'>{$dt}</span>
+                                                                    <span class='text-xs font-mono'>$dt</span>
                                                                   </div>";
                                                 }
                                             } elseif (($sched['status'] ?? '') == 'PROPOSTO') {
                                                 $schedHtml = "<div class='flex flex-col items-start gap-1'>
                                                                 <span class='bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold border border-blue-200'>📅 PROPOSTO</span>
-                                                                <span class='text-xs'>{$dt}</span>
-                                                                <span class='text-[9px] text-gray-500'>por {$quemPropos}</span>
+                                                                <span class='text-xs'>$dt</span>
+                                                                <span class='text-[9px] text-gray-500'>por $quemPropos</span>
                                                               </div>";
                                             } else {
                                                 $schedHtml = "<div class='flex flex-col items-start gap-1'>
                                                                 <span class='bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-bold border border-red-200'>" . htmlspecialchars('ERRO SCHED STATUS: ' . $sched['status']) . "</span>
-                                                                <span class='text-xs'>{$dt}</span>
+                                                                <span class='text-xs'>$dt</span>
                                                               </div>";
                                             }
                                         } else if ( $m['status'] == 'CONCLUIDO') {
@@ -1392,7 +1391,7 @@ if (is_array($pilots)) {
                                                 }
                                                 $schedHtml = "<div class='flex flex-col items-start gap-1'>
                                                                 <span class='bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs font-bold border border-emerald-200'>🏁 FINALIZADA</span>
-                                                                <span class='text-xs font-bold text-emerald-600'>🏆 {$winName}</span>
+                                                                <span class='text-xs font-bold text-emerald-600'>🏆 $winName</span>
                                                               </div>";
                                             } else {
                                                 $schedHtml = "<span class='text-gray-400 italic text-xs'>Sem agendamento</span>";
@@ -1448,13 +1447,13 @@ if (is_array($pilots)) {
             </div>
         <?php endif; ?>
 
-        <!-- ZONA DE PERIGO (LOGS E RESET) -->
+        <!-- ZONA DE PERIGO (_Logs_ E RESET) -->
         <div class="mt-12 mb-20 pt-8 border-t border-gray-200">
             <h3 class="text-center text-gray-400 text-xs font-bold uppercase tracking-widest mb-6">Zona de Perigo & Logs</h3>
             
             <div class="flex flex-wrap justify-center gap-4">
                 
-                <!-- Criar Backup -->
+                <!-- Criar _Backup_ -->
                 <form method="POST">
                     <button type="submit" name="criar_backup" class="group flex items-center text-green-600 hover:text-white border border-green-200 bg-white hover:bg-green-600 px-6 py-3 rounded-lg shadow-sm transition-all duration-300 w-full md:w-auto">
                         <span class="text-xl mr-3">💾</span>
@@ -1462,13 +1461,13 @@ if (is_array($pilots)) {
                     </button>
                 </form>
 
-                <!-- Gerenciar Backups -->
+                <!-- Gerenciar _Backups_ -->
                 <button type="button" onclick="openBackupModal()" class="group flex items-center text-cyan-600 hover:text-white border border-cyan-200 bg-white hover:bg-cyan-600 px-6 py-3 rounded-lg shadow-sm transition-all duration-300 w-full md:w-auto">
                     <span class="text-xl mr-3">🗂️</span>
                     <span class="font-bold text-sm uppercase tracking-wider">Backups (<?= count($backupList) ?>)</span>
                 </button>
 
-                <!-- Upload Partidas (Novo) -->
+                <!-- _Upload_ Partidas (Novo) -->
                 <form method="POST" enctype="multipart/form-data" class="group flex items-center md:w-auto w-full">
                     <input type="file" name="matches_file" id="matches_file" class="hidden" accept=".json" onchange="this.form.submit()">
                     <button type="button" onclick="document.getElementById('matches_file').click()" class="group flex items-center justify-center text-purple-600 hover:text-white border border-purple-200 bg-white hover:bg-purple-600 px-6 py-3 rounded-lg shadow-sm transition-all duration-300 w-full">
@@ -1480,13 +1479,13 @@ if (is_array($pilots)) {
                     </button>
                 </form>
 
-                <!-- Ver Logs (Popup) -->
+                <!-- Ver _Logs_ (Popup) -->
                 <button type="button" onclick="openLogModal()" class="group flex items-center text-indigo-600 hover:text-white border border-indigo-200 bg-white hover:bg-indigo-600 px-6 py-3 rounded-lg shadow-sm transition-all duration-300 w-full md:w-auto">
                     <span class="text-xl mr-3">👁️</span>
                     <span class="font-bold text-sm uppercase tracking-wider">Ver Logs</span>
                 </button>
 
-                <!-- Baixar Logs -->
+                <!-- Baixar _Logs_ -->
                 <form method="POST" target="_blank">
                     <button type="submit" name="baixar_logs" class="group flex items-center text-gray-600 hover:text-white border border-gray-200 bg-white hover:bg-gray-600 px-6 py-3 rounded-lg shadow-sm transition-all duration-300 w-full md:w-auto">
                         <span class="text-xl mr-3">⬇️</span>
@@ -1494,8 +1493,8 @@ if (is_array($pilots)) {
                     </button>
                 </form>
 
-                <!-- Limpar Logs -->
-                <form method="POST" onsubmit="return confirm('Apagar todo o histórico de logs de erro/debug?');">
+                <!-- Limpar _Logs_ -->
+                <form method="POST" onsubmit="return confirm('Apagar todo o histórico de Logs de erro/debug?');">
                     <button type="submit" name="limpar_logs" class="group flex items-center text-orange-500 hover:text-white border border-orange-200 bg-white hover:bg-orange-500 px-6 py-3 rounded-lg shadow-sm transition-all duration-300 w-full md:w-auto">
                         <span class="text-xl mr-3">🧹</span>
                         <span class="font-bold text-sm uppercase tracking-wider">Limpar Logs</span>
@@ -1514,7 +1513,7 @@ if (is_array($pilots)) {
 
     </div>
 
-    <!-- MODAL DE LOGS -->
+    <!-- MODAL DE _Logs_ -->
     <div id="logModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
         <div class="bg-white w-11/12 md:w-3/4 h-3/4 rounded-lg shadow-2xl flex flex-col overflow-hidden">
             <div class="bg-indigo-900 text-white px-4 py-3 flex justify-between items-center">
