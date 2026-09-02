@@ -200,13 +200,16 @@ function getPhaseNameById($id, $phases) {
     return (string) $id;
 }
 
-function validateAndCleanMatchRecord($match, $tournaments, $phases, &$validationErrors = []) {
+function validateAndCleanMatchRecord($match, $tournaments, $phases, &$validationErrors = [], $requireId = true) {
     if (!is_array($match)) {
         $validationErrors[] = "Registro de partida não é um array válido.";
         return null;
     }
 
-    $requiredFields = ['id', 'player1ID', 'player2ID', 'groupName', 'tournamentId', 'phaseId', 'tournament', 'phase', 'localTrack', 'deadline', 'status', 'winnerID', 'createdAt'];
+    // Campos requeridos podem variar: em uploads em massa aceitar arquivos sem o campo 'id'
+    $requiredFields = ['player1ID', 'player2ID', 'groupName', 'tournamentId', 'phaseId', 'tournament', 'phase', 'localTrack', 'deadline', 'status', 'winnerID', 'createdAt'];
+    if ($requireId) array_unshift($requiredFields, 'id');
+
     $missingFields = [];
     foreach ($requiredFields as $field) {
         if (!array_key_exists($field, $match)) {
@@ -234,7 +237,7 @@ function validateAndCleanMatchRecord($match, $tournaments, $phases, &$validation
         $validationErrors[] = trim($msg);
     }
 
-    // Retorna a estrutura estrita em CamelCase
+    // Retorna a estrutura estrita em CamelCase (id pode ser 0 quando não fornecido)
     return [
         'id' => (int) ($match['id'] ?? 0),
         'player1ID' => (int) ($match['player1ID'] ?? 0),
@@ -486,35 +489,21 @@ if (isset($_FILES['matches_file']) && $_FILES['matches_file']['error'] === UPLOA
     } else {
         $currentMatches = getJson(FILE_MATCHES);
         $currentIds = array_column($currentMatches, 'id');
-        $newIds = [];
-        $duplicates = [];
+        $maxId = empty($currentIds) ? 0 : max($currentIds);
+
         $structureErrors = [];
         $sanitizedMatches = [];
-        
-        // Validação de Integridade, Estrutura e Duplicidade
+
+        // Validação de Estrutura (aceita ausência de 'id' - será atribuído sequencialmente)
         foreach ($newMatches as $idx => $m) {
             if (!is_array($m)) {
                 $structureErrors[] = "Item na posição $idx não é um objeto/array.";
                 continue;
             }
 
-            if (!isset($m['id'])) {
-                $duplicates[] = "Item na posição $idx sem ID";
-                continue;
-            }
-            // Verifica duplicidade com o banco atual
-            if (in_array($m['id'], $currentIds)) {
-                $duplicates[] = "#" . $m['id'] . " (Já existe no sistema)";
-            }
-            // Verifica duplicidade dentro do próprio arquivo
-            if (in_array($m['id'], $newIds)) {
-                 $duplicates[] = "#" . $m['id'] . " (Duplicado no arquivo enviado)";
-            }
-            $newIds[] = $m['id'];
-
-            // Validação estrita de campos requeridos em CamelCase
             $itemErrors = [];
-            $cleaned = validateAndCleanMatchRecord($m, $tournaments, $phases, $itemErrors);
+            // Não exigir 'id' no arquivo de upload
+            $cleaned = validateAndCleanMatchRecord($m, $tournaments, $phases, $itemErrors, false);
             if (!empty($itemErrors)) {
                 $structureErrors = array_merge($structureErrors, $itemErrors);
             } else {
@@ -522,21 +511,28 @@ if (isset($_FILES['matches_file']) && $_FILES['matches_file']['error'] === UPLOA
             }
         }
 
-        if (!empty($duplicates) || !empty($structureErrors)) {
-            // Rejeita tudo se houver conflito ou campos inválidos/duplicados/ausentes
-            $erros = array_merge($duplicates, $structureErrors);
-            $listaErros = implode('<br>', array_map('htmlspecialchars', array_unique($erros)));
-            $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>🚫 <b>Upload Rejeitado!</b><br>Foram encontrados erros de estrutura ou duplicidades:<br><div class='text-xs mt-2 font-mono'>$listaErros</div></div>";
+        if (!empty($structureErrors)) {
+            $listaErros = implode('<br>', array_map('htmlspecialchars', array_unique($structureErrors)));
+            $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>🚫 <b>Upload Rejeitado!</b><br>Foram encontrados erros de estrutura:<br><div class='text-xs mt-2 font-mono'>$listaErros</div></div>";
         } else {
-            // Sucesso: Merge e Salvar
+            // Atribuir IDs sequenciais a partir do último ID existente
+            $nextId = $maxId + 1;
+            foreach ($sanitizedMatches as &$sm) {
+                $sm['id'] = $nextId++;
+                if (empty($sm['createdAt'])) $sm['createdAt'] = date('Y-m-d H:i:s');
+            }
+            unset($sm);
+
             $merged = array_merge($currentMatches, $sanitizedMatches);
-            
+
             // Ordenar por ID para manter organização
             usort($merged, function($a, $b) { return $a['id'] - $b['id']; });
-            
+
             saveJson(FILE_MATCHES, $merged);
-            adminLog("Upload massivo de partidas realizado: " . count($sanitizedMatches) . " novas partidas importadas.");
-            $msgFeedback = "<div class='bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4'>✅ <b>Sucesso!</b> " . count($sanitizedMatches) . " partidas foram importadas com sucesso.</div>";
+            $firstNew = $maxId + 1;
+            $lastNew = $nextId - 1;
+            adminLog("Upload massivo de partidas realizado: " . count($sanitizedMatches) . " novas partidas importadas (IDs: $firstNew - $lastNew).");
+            $msgFeedback = "<div class='bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4'>✅ <b>Sucesso!</b> " . count($sanitizedMatches) . " partidas foram importadas com sucesso. IDs: <b>#$firstNew - #$lastNew</b></div>";
         }
     }
 }
@@ -556,46 +552,36 @@ if (isset($_POST['baixar_logs'])) {
     }
 }
 
-// --- AÇÃO: BAIXAR BACKUP (ZIP DINÂMICO DA PASTA) ---
+// --- AÇÃO: BAIXAR BACKUP ---
 if (isset($_POST['baixar_backup'])) {
     $timestamp = $_POST['timestamp'] ?? '';
-    // Segurança: validar formato do timestamp
-    if (preg_match('/^\d{4}-\d{2}-\d{2}_\d{6}$/', $timestamp)) {
-        $targetDir = BACKUP_DIR . '/' . $timestamp;
-        
-        if (is_dir($targetDir)) {
-            $zipFile = sys_get_temp_dir() . "/backup_{$timestamp}.zip";
-            $zip = new ZipArchive();
-            
-            if ($zip->open($zipFile, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
-                $files = glob($targetDir . '/*.backup');
-                foreach ($files as $file) {
-                    $localName = str_replace('.backup', '', basename($file));
-                    $zip->addFile($file, $localName);
-                }
-                $zip->close();
-                
-                if (file_exists($zipFile)) {
-                    header('Content-Description: File Transfer');
-                    header('Content-Type: application/zip');
-                    header('Content-Disposition: attachment; filename="backup_'.$timestamp.'.zip"');
-                    header('Expires: 0');
-                    header('Cache-Control: must-revalidate');
-                    header('Pragma: public');
-                    header('Content-Length: ' . filesize($zipFile));
-                    readfile($zipFile);
-                    unlink($zipFile); // Limpar temp
-                    exit;
-                }
-            }
-        }
+
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}_\d{6}$/', $timestamp)) {
+        exit;
     }
+
+    $zipFile = BACKUP_DIR . '/' . $timestamp . '.zip';
+
+    if (!is_file($zipFile)) {
+        exit;
+    }
+
+    header('Content-Description: File Transfer');
+    header('Content-Type: application/zip');
+    header('Content-Disposition: attachment; filename="backup_' . $timestamp . '.zip"');
+    header('Expires: 0');
+    header('Cache-Control: must-revalidate');
+    header('Pragma: public');
+    header('Content-Length: ' . filesize($zipFile));
+
+    readfile($zipFile);
+    exit;
 }
 
 // --- ADMIN: CRIAR BACKUP (SNAPSHOT) ---
 if (isset($_POST['criar_backup'])) {
     if (class_exists('backupManager')) {
-        $res = backupManager::createBackupSnapshot($_SESSION['admin_user'] ?? 'Admin');
+        $res = backupManager::createBackupSnapshot();
         if ($res['success']) {
             adminLog("Backup manual criado: " . $res['timestamp']);
             $msgFeedback = "<div class='bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4'>💾 <b>Backup Criado!</b> Pasta: {$res['timestamp']}</div>";
@@ -623,18 +609,28 @@ if (isset($_POST['excluir_backup'])) {
 // --- ADMIN: LIMPAR TUDO (RESET TEMPORADA) ---
 if (isset($_POST['limpar_partidas'])) {
     if (class_exists('backupManager')) {
-        $res = backupManager::rotateSeasonFull($_SESSION['admin_user'] ?? 'Admin');
-        if ($res['success']) {
-            adminLog("Temporada resetada e backup criado: " . $res['timestamp']);
-            $msgFeedback = "<div class='bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4'>🔄 <b>Temporada Resetada!</b> Backup de segurança em: {$res['timestamp']}</div>";
+        // Criar snapshot (apenas bookings/tournaments) como referência antes de limpar
+        $res = backupManager::createBackupSnapshot();
+        // Limpar os arquivos de partidas, agendamentos e auditoria (sem backup completo adicional)
+        saveJson(FILE_MATCHES, []);
+        saveJson(FILE_SCHEDULES, []);
+        saveJson(FILE_AUDIT, []);
+        // Também reiniciar sessions se existir
+        if (defined('FILE_SESSIONS')) saveJson(FILE_SESSIONS, []);
+
+        adminLog("Temporada resetada pelo Admin. Snapshot de segurança: " . ($res['timestamp'] ?? 'n/a'));
+
+        if (!empty($res['success'])) {
+            $msgFeedback = "<div class='bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4'>🔄 <b>Temporada Resetada!</b> Snapshot criado em: {$res['timestamp']}</div>";
         } else {
-            $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>Erro ao resetar: {$res['error']}</div>";
+            $msgFeedback = "<div class='bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4'>🔄 Temporada Resetada. Observação: falha ao criar snapshot: {$res['error']}</div>";
         }
     } else {
         // Fallback manual se a classe não existir (segurança)
         saveJson(FILE_MATCHES, []);
         saveJson(FILE_SCHEDULES, []);
         saveJson(FILE_AUDIT, []);
+        if (defined('FILE_SESSIONS')) saveJson(FILE_SESSIONS, []);
         adminLog("Resetou a temporada (Fallback manual).");
         $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>🗑️ <b>Limpeza Completa!</b> Temporada resetada.</div>";
     }
@@ -646,20 +642,6 @@ if (isset($_POST['limpar_logs'])) {
     $msgFeedback = "<div class='bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-4'>📄 <b>Logs Limpos!</b> Arquivo de log reiniciado.</div>";
 }
 
-// --- ADMIN: ARQUIVAR LOGS ---
-if (isset($_POST['arquivar_logs'])) {
-    if (file_exists(FILE_LOG_BOT)) {
-        $timestamp = date('Y-m-d_H-i-s');
-        $archiveName = LOG_DIR . "/archive_botMain_{$timestamp}.log";
-        
-        if (rename(FILE_LOG_BOT, $archiveName)) {
-            file_put_contents(FILE_LOG_BOT, "[" . date('Y-m-d H:i:s') . "] Novo arquivo de log iniciado arquivamento." . PHP_EOL);
-            $msgFeedback = "<div class='bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4'>📦 <b>Log Arquivado!</b> Salvo como: " . basename($archiveName) . "</div>";
-        } else {
-            $msgFeedback = "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4'>Erro ao arquivar log.</div>";
-        }
-    }
-}
 
 // --- ADMIN: GERAR PARTIDAS ---
 if (isset($_POST['gerar_partidas'])) {
@@ -1028,6 +1010,59 @@ if (is_array($pilots)) {
         function closeLogModal() { document.getElementById('logModal').classList.add('hidden'); }
         function openBackupModal() { document.getElementById('backupModal').classList.remove('hidden'); }
         function closeBackupModal() { document.getElementById('backupModal').classList.add('hidden'); }
+
+        // Modelo JSON para upload (exibido e copiado ao clicar no botão 'i')
+        function showUploadTemplate() {
+            const template = [
+                {
+                    "player1ID": 1015,
+                    "player2ID": 1023,
+                    "groupName": "Quartas de Final",
+                    "tournamentId": "T14",
+                    "tournament": "T1 - Torneio de Verão: Dakar Series",
+                    "phaseId": "F3",
+                    "phase": "Quartas de Final",
+                    "localTrack": [
+                        "SCN",
+                        "ITA"
+                    ],
+                    "deadline": "2026-09-02 23:59:59",
+                    "status": "PENDENTE",
+                    "winnerID": null,
+                    "createdAt": "2026-09-01 13:51:52"
+                },
+                {
+                    "player1ID": 1019,
+                    "player2ID": 1021,
+                    "groupName": "Grupo 7",
+                    "tournamentId": "T17",
+                    "tournament": "T3 - La Liga - Série Ouro",
+                    "phaseId": "F2",
+                    "phase": "Fase de Grupos",
+                    "localTrack": [
+                        "11 JAP - Yokohama",
+                        "21 FRA - Paris",
+                        "31 UK - Loch Ness"
+                    ],
+                    "deadline": "2026-09-09 23:59:59",
+                    "status": "PENDENTE",
+                    "winnerID": null,
+                    "createdAt": "2026-09-01 19:10:44"
+                }
+            ];
+            const pretty = JSON.stringify(template, null, 4);
+
+            // Tentar copiar para área de transferência
+            if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(pretty).then(() => {
+                    alert('Modelo JSON copiado para a área de transferência.\nCole no seu editor e peça para a IA gerar partidas a partir dos prints.\n\n' + pretty);
+                }).catch(() => {
+                    prompt('Copiar manualmente (Ctrl+C):', pretty);
+                });
+            } else {
+                prompt('Copiar manualmente (Ctrl+C):', pretty);
+            }
+        }
     </script>
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans pb-20">
@@ -1437,6 +1472,9 @@ if (is_array($pilots)) {
                         <span class="text-xl mr-3">📂</span>
                         <span class="font-bold text-sm uppercase tracking-wider">Upload Partidas</span>
                     </button>
+                    <button type="button" onclick="showUploadTemplate()" title="Modelo JSON para Upload (copiar)" class="ml-3 flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-100 px-3 py-2 rounded text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#93C5FD"/><text x="12" y="16" font-size="12" text-anchor="middle" fill="#ffffff" font-family="Arial">i</text></svg>
+                    </button>
                 </form>
 
                 <!-- Ver Logs (Popup) -->
@@ -1450,14 +1488,6 @@ if (is_array($pilots)) {
                     <button type="submit" name="baixar_logs" class="group flex items-center text-gray-600 hover:text-white border border-gray-200 bg-white hover:bg-gray-600 px-6 py-3 rounded-lg shadow-sm transition-all duration-300 w-full md:w-auto">
                         <span class="text-xl mr-3">⬇️</span>
                         <span class="font-bold text-sm uppercase tracking-wider">Baixar Logs</span>
-                    </button>
-                </form>
-
-                 <!-- Arquivar Logs -->
-                 <form method="POST" onsubmit="return confirm('Deseja renomear o log atual para arquivamento e iniciar um novo limpo?');">
-                    <button type="submit" name="arquivar_logs" class="group flex items-center text-yellow-600 hover:text-white border border-yellow-200 bg-white hover:bg-yellow-500 px-6 py-3 rounded-lg shadow-sm transition-all duration-300 w-full md:w-auto">
-                        <span class="text-xl mr-3">📦</span>
-                        <span class="font-bold text-sm uppercase tracking-wider">Arquivar Logs</span>
                     </button>
                 </form>
 

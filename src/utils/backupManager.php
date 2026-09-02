@@ -13,315 +13,203 @@ if (!defined('CONFIG_LOADED')) {
 class backupManager {
     
     /**
-     * Cria apenas um backup (Snapshot) sem alterar/limpar os dados atuais.
-     * Útil para o botão "Criar Backup" do admin.
-     * * @param string $adminId ID do admin solicitante
-     * @return array Resultado da operação
+     * Cria apenas um backup (Snapshot)
      */
-    public static function createBackupSnapshot($adminId = 'system') {
+    public static function createBackupSnapshot(): array
+    {
         if (!defined('BACKUP_DIR') || !defined('BOOKINGS_DATA_DIR') || !defined('TOURNAMENTS_DATA_DIR')) {
-            return ['success' => false, 'error' => 'Constantes BACKUP_DIR, BOOKINGS_DATA_DIR ou TOURNAMENTS_DATA_DIR não definidas'];
+            return [
+                'success' => false,
+                'error' => 'Constantes BACKUP_DIR, BOOKINGS_DATA_DIR ou TOURNAMENTS_DATA_DIR não definidas'
+            ];
         }
 
-        // Criar pasta de backup com data/hora
         $timestamp = date('Y-m-d_His');
         $backupDir = BACKUP_DIR . '/' . $timestamp;
-        
-        if (!@mkdir($backupDir, 0755, true)) {
-            return ['success' => false, 'error' => "Não foi possível criar diretório: $backupDir"];
-        }
-
-        $files_backed_up = [];
+        $zipFile = BACKUP_DIR . '/' . $timestamp . '.zip';
 
         try {
-            // Backup completo da pasta BOOKINGS_DATA_DIR (recursivo)
-            $sourceDir = rtrim(BOOKINGS_DATA_DIR, '/\\');
-            $destDir = $backupDir . '/bookingsData';
+            if (!mkdir($backupDir, 0755, true)) {
+                return [
+                    'success' => false,
+                    'error' => "Não foi possível criar diretório: $backupDir"
+                ];
+            }
 
-            if (!@mkdir($destDir, 0755, true)) {
-                return ['success' => false, 'error' => "Não foi possível criar diretório de backup de bookingsData: $destDir"];
+            $copyDirectory = function ($source, $destination) use (&$copyDirectory) {
+                if (!is_dir($source)) {
+                    throw new Exception("Diretório não encontrado: $source");
+                }
+
+                if (!is_dir($destination) && !mkdir($destination, 0755, true)) {
+                    throw new Exception("Não foi possível criar diretório: $destination");
+                }
+
+                foreach (scandir($source) as $item) {
+                    if ($item === '.' || $item === '..') {
+                        continue;
+                    }
+
+                    $sourcePath = $source . DIRECTORY_SEPARATOR . $item;
+                    $destinationPath = $destination . DIRECTORY_SEPARATOR . $item;
+
+                    if (is_dir($sourcePath)) {
+                        $copyDirectory($sourcePath, $destinationPath);
+                    } else {
+                        if (!copy($sourcePath, $destinationPath)) {
+                            throw new Exception("Não foi possível copiar: $sourcePath");
+                        }
+                    }
+                }
+            };
+
+            $copyDirectory(
+                rtrim(BOOKINGS_DATA_DIR, '/\\'),
+                $backupDir . '/bookingsData'
+            );
+
+            $copyDirectory(
+                rtrim(TOURNAMENTS_DATA_DIR, '/\\'),
+                $backupDir . '/tournamentsData'
+            );
+
+            $zip = new ZipArchive();
+
+            if ($zip->open($zipFile, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+                throw new Exception("Não foi possível criar arquivo ZIP: $zipFile");
             }
 
             $iterator = new RecursiveIteratorIterator(
-                new RecursiveDirectoryIterator($sourceDir, RecursiveDirectoryIterator::SKIP_DOTS),
-                RecursiveIteratorIterator::SELF_FIRST
+                new RecursiveDirectoryIterator($backupDir, FilesystemIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::LEAVES_ONLY
             );
 
-            foreach ($iterator as $item) {
-                $targetPath = $destDir . DIRECTORY_SEPARATOR . $iterator->getSubPathName();
-                if ($item->isDir()) {
-                    @mkdir($targetPath, 0755);
-                } else {
-                    if (@copy($item, $targetPath)) {
-                        $files_backed_up[] = $targetPath;
+            foreach ($iterator as $file) {
+                if (!$file->isFile()) {
+                    continue;
+                }
+                $filePath = $file->getRealPath();
+                $relativePath = substr( $filePath,strlen($backupDir) + 1 );
+                $zip->addFile($filePath, $relativePath);
+            }
+
+            $zip->close();
+            $deleteDirectory = function ($directory) use (&$deleteDirectory) {
+                if (!is_dir($directory)) {
+                    return;
+                }
+
+                foreach (scandir($directory) as $item) {
+                    if ($item === '.' || $item === '..') {
+                        continue;
+                    }
+
+                    $path = $directory . DIRECTORY_SEPARATOR . $item;
+
+                    if (is_dir($path)) {
+                        $deleteDirectory($path);
+                    } else {
+                        unlink($path);
                     }
                 }
-            }
-            
-            // Backup completo da pasta TOURNAMENTS_DATA_DIR (recursivo)
-            $sourceDir = rtrim(TOURNAMENTS_DATA_DIR, '/\\');
-            $destDir = $backupDir . '/tournamentsData';
-
-            if (!@mkdir($destDir, 0755, true)) {
-                return ['success' => false, 'error' => "Não foi possível criar diretório de backup de TOURNAMENTS_DATA_DIR: $destDir"];
-            }
-
-            $iterator = new RecursiveIteratorIterator(
-                new RecursiveDirectoryIterator($sourceDir, RecursiveDirectoryIterator::SKIP_DOTS),
-                RecursiveIteratorIterator::SELF_FIRST
-            );
-
-            foreach ($iterator as $item) {
-                $targetPath = $destDir . DIRECTORY_SEPARATOR . $iterator->getSubPathName();
-                if ($item->isDir()) {
-                    @mkdir($targetPath, 0755);
-                } else {
-                    if (@copy($item, $targetPath)) {
-                        $files_backed_up[] = $targetPath;
-                    }
-                }
-            }
+                rmdir($directory);
+            };
+            $deleteDirectory($backupDir);
 
             return [
                 'success' => true,
                 'timestamp' => $timestamp,
-                'backup_dir' => $backupDir,
-                'files_backed_up' => $files_backed_up,
-                'message' => "Backup completo da pasta bookingsData e tournamentsData criado em: $backupDir"
+                'backup_file' => $zipFile,
+                'message' => "Backup criado com sucesso: $zipFile"
             ];
+
         } catch (Exception $e) {
-            return ['success' => false, 'error' => $e->getMessage()];
+
+            if (is_dir($backupDir)) {
+                $deleteDirectory = function ($directory) use (&$deleteDirectory) {
+                    if (!is_dir($directory)) {
+                        return;
+                    }
+                    foreach (scandir($directory) as $item) {
+                        if ($item === '.' || $item === '..') {
+                            continue;
+                        }
+                        $path = $directory . DIRECTORY_SEPARATOR . $item;
+                        if (is_dir($path)) {
+                            $deleteDirectory($path);
+                        } else {
+                            @unlink($path);
+                        }
+                    }
+                    @rmdir($directory);
+                };
+                $deleteDirectory($backupDir);
+            }
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
         }
     }
 
     /**
-     * Executar rotação de temporada
-     * * Remove dados de matches, schedules, audit
-     * Mas MANTÉM dados de pilots (com status intacto)
-     * Faz backup de todos os arquivos com timestamp
-     * * @param string $adminId ID do admin que rotacionou
-     * @return array Resultado da operação
+     * Listar backups disponíveis
+     *
+     * Os backups são armazenados como:
+     * BACKUP_DIR/YYYY-MM-DD_HHMMSS.zip
+     *
+     * @return array
      */
-    public static function rotateSeasonFull($adminId = 'system') {
-        if (!defined('BACKUP_DIR') || !defined('DATA_DIR')) {
-            return [
-                'success' => false,
-                'error' => 'Constantes não definidas'
-            ];
-        }
-        
-        // Criar pasta de backup com data/hora
-        $timestamp = date('Y-m-d_His');
-        $backupDir = BACKUP_DIR . '/' . $timestamp;
-        
-        if (!@mkdir($backupDir, 0755, true)) {
-            return [
-                'success' => false,
-                'error' => "Não foi possível criar diretório: $backupDir"
-            ];
-        }
-        
-        $files_backed_up = [];
-        $files_cleared = [];
-        
-        try {
-            // === ARQUIVOS PARA FAZER BACKUP E DEPOIS LIMPAR ===
-            $filesToClear = [
-                defined('FILE_MATCHES') ? FILE_MATCHES : DATA_DIR . '/matches.json',
-                defined('FILE_SCHEDULES') ? FILE_SCHEDULES : DATA_DIR . '/schedules.json',
-                defined('FILE_AUDIT') ? FILE_AUDIT : DATA_DIR . '/auditSchedules.json'
-            ];
-            
-            foreach ($filesToClear as $file) {
-                if (file_exists($file)) {
-                    $filename = basename($file);
-                    $backupFile = $backupDir . '/' . $filename . '.backup';
-                    
-                    // Fazer backup
-                    if (@copy($file, $backupFile)) {
-                        $files_backed_up[] = $filename;
-                    }
-                    
-                    // Limpar arquivo original (escrever JSON vazio)
-                    $emptyData = json_encode([], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-                    if (@file_put_contents($file, $emptyData)) {
-                        $files_cleared[] = $filename;
-                    }
-                }
-            }
-            
-            // === ARQUIVO DE PILOTS - APENAS BACKUP, NÃO LIMPA ===
-            $filePilots = defined('FILE_PILOTS') ? FILE_PILOTS : (defined('GENERAL_DATA_DIR') ? GENERAL_DATA_DIR . '/pilots.json' : DATA_DIR . '/pilots.json');
-            if (file_exists($filePilots)) {
-                $backupFile = $backupDir . '/pilots.json.backup';
-                @copy($filePilots, $backupFile);
-                $files_backed_up[] = 'pilots.json (backup apenas)';
-            }
-            
-            // === ARQUIVO DE SESSIONS - APENAS LIMPEZA ===
-            $fileSessions = defined('FILE_SESSIONS') ? FILE_SESSIONS : DATA_DIR . '/sessions.json';
-            if (file_exists($fileSessions)) {
-                $emptyData = json_encode([], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-                @file_put_contents($fileSessions, $emptyData);
-                $files_cleared[] = 'sessions.json';
-            }
-            
-            // === REGISTRAR NO LOG ===
-            if (class_exists('logHandler') && method_exists('logHandler', 'logSeasonRotation')) {
-                logHandler::logSeasonRotation($adminId, $timestamp);
-            }
-            
-            return [
-                'success' => true,
-                'timestamp' => $timestamp,
-                'backup_dir' => $backupDir,
-                'files_backed_up' => $files_backed_up,
-                'files_cleared' => $files_cleared,
-                'message' => "Rotação concluída! Backup em: $backupDir"
-            ];
-            
-        } catch (Exception $e) {
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-                'backup_dir' => $backupDir
-            ];
-        }
-    }
-    
-    /**
-     * Listar todos os backups disponíveis
-     * * @return array Lista de backups
-     */
-    public static function listBackups() {
-        if (!defined('BACKUP_DIR')) {
+    public static function listBackups(): array
+    {
+        if (!defined('BACKUP_DIR') || !is_dir(BACKUP_DIR)) {
             return [];
         }
-        
         $backups = [];
-        
-        if (!is_dir(BACKUP_DIR)) {
-            return $backups;
-        }
-        
-        $dirs = glob(BACKUP_DIR . '/????-??-??_??????', GLOB_ONLYDIR);
-        
-        if ($dirs) {
-            foreach ($dirs as $dir) {
-                $timestamp = basename($dir);
-                $files = count(glob($dir . '/*.backup'));
-                $size = self::getDirSize($dir);
-                
+        $files = glob(BACKUP_DIR . '/????-??-??_??????.zip');
+
+        if ($files) {
+            foreach ($files as $file) {
+                if (!is_file($file)) {
+                    continue;
+                }
+                $filename = basename($file);
+                $timestamp = pathinfo($filename, PATHINFO_FILENAME);
+                $size = filesize($file);
                 $backups[] = [
                     'timestamp' => $timestamp,
-                    'files' => $files,
+                    'files' => 1,
                     'size_mb' => round($size / (1024 * 1024), 2),
-                    'path' => $dir
+                    'path' => $file
                 ];
             }
         }
-        
-        // Ordenar por data decrescente
-        usort($backups, function($a, $b) {
+        usort($backups, function ($a, $b) {
             return strcmp($b['timestamp'], $a['timestamp']);
         });
-        
+
         return $backups;
     }
-    
+
+
     /**
      * Deletar um backup específico
-     * * @param string $timestamp Data/hora do backup
+     *
+     * @param string $timestamp Data/hora do backup
      * @return bool
      */
-    public static function deleteBackup($timestamp) {
+    public static function deleteBackup(string $timestamp): bool
+    {
         if (!defined('BACKUP_DIR')) {
             return false;
         }
-        
-        $backupDir = BACKUP_DIR . '/' . $timestamp;
-        
-        if (!is_dir($backupDir)) {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}_\d{6}$/', $timestamp)) {
             return false;
         }
-        
-        return self::deleteDirectory($backupDir);
-    }
-    
-    /**
-     * Limpar todos os backups antigos (mais de N dias)
-     * * @param int $days Dias de retenção
-     * @return int Número de backups deletados
-     */
-    public static function cleanOldBackups($days = 30) {
-        if (!defined('BACKUP_DIR')) {
-            return 0;
+        $backupFile = BACKUP_DIR . '/' . $timestamp . '.zip';
+        if (!is_file($backupFile)) {
+            return false;
         }
-        
-        $deleted = 0;
-        $maxAge = time() - ($days * 86400);
-        
-        $dirs = glob(BACKUP_DIR . '/????-??-??_??????', GLOB_ONLYDIR);
-        
-        if ($dirs) {
-            foreach ($dirs as $dir) {
-                $mtime = filemtime($dir);
-                
-                if ($mtime < $maxAge) {
-                    if (self::deleteDirectory($dir)) {
-                        $deleted++;
-                    }
-                }
-            }
-        }
-        
-        return $deleted;
-    }
-    
-    /**
-     * Obter tamanho total de um diretório
-     * * @param string $dir Caminho do diretório
-     * @return int Tamanho em bytes
-     */
-    private static function getDirSize($dir) {
-        $size = 0;
-        
-        foreach (glob($dir . '/*') as $file) {
-            if (is_file($file)) {
-                $size += filesize($file);
-            }
-        }
-        
-        return $size;
-    }
-    
-    /**
-     * Deletar diretório recursivamente
-     * * @param string $dir Caminho do diretório
-     * @return bool
-     */
-    private static function deleteDirectory($dir) {
-        if (!is_dir($dir)) {
-            return @unlink($dir);
-        }
-        
-        $files = scandir($dir);
-        
-        foreach ($files as $file) {
-            if ($file === '.' || $file === '..') {
-                continue;
-            }
-            
-            $path = $dir . '/' . $file;
-            
-            if (is_dir($path)) {
-                self::deleteDirectory($path);
-            } else {
-                @unlink($path);
-            }
-        }
-        
-        return @rmdir($dir);
+        return @unlink($backupFile);
     }
 }
-?>
