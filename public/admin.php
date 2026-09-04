@@ -1331,9 +1331,9 @@ if (is_array($pilots)) {
                                         $sched = getMatchSchedule($m['id'], $schedules);
 
                                         if ($sched) {
-                                            $dtTimestamp = !empty($sched['bookDate']) ? strtotime($sched['bookDate']) : 0;
+                                            $dtTimestamp = !empty($sched['bookingDate']) ? strtotime($sched['bookingDate']) : 0;
                                             $dt = $dtTimestamp ? date('d/m H:i', $dtTimestamp) : 'Data N/D';
-                                            $quemPropos = getPilotNameDisplay($sched['pilotID'] ?? 0, $pilotsMap);
+                                            $quemPropos = getPilotNameDisplay($sched['proposedByPilotID'] ?? 0, $pilotsMap);
                                             
                                             // Check for expiration
                                             $isExpired = false;
