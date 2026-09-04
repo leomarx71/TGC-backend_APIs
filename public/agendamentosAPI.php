@@ -250,7 +250,7 @@ switch ($cmd) {
         if ($pilotID == 351935525827) {
             respond(
                 "❌ Este comando não pode ser utilizado em grupos.\n\n" .
-                "Envie uma mensagem privada para o TopGearTGCBot +351935525827 e execute o comando por lá.",
+                "Envie uma mensagem lá no grupo do Bot TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
                 []
             );
         }
@@ -273,7 +273,7 @@ switch ($cmd) {
         if ($pilotID == 351935525827) {
             respond(
                 "❌ Este comando não pode ser utilizado em grupos.\n\n" .
-                "Envie uma mensagem privada para o TopGearTGCBot +351935525827 e execute o comando por lá.",
+                "Envie uma mensagem lá no grupo do Bot TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
                 []
             );
         }
@@ -305,7 +305,7 @@ switch ($cmd) {
         if ($pilotID == 351935525827) {
             respond(
                 "❌ Este comando não pode ser utilizado em grupos.\n\n" .
-                "Envie uma mensagem privada para o TopGearTGCBot +351935525827 e execute o comando por lá.",
+                "Envie uma mensagem lá no grupo do Bot TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
                 []
             );
         }
@@ -395,7 +395,7 @@ switch ($cmd) {
         if ($pilotID == 351935525827) {
             respond(
                 "❌ Este comando não pode ser utilizado em grupos.\n\n" .
-                "Envie uma mensagem privada para o TopGearTGCBot +351935525827 e execute o comando por lá.",
+                "Envie uma mensagem lá no grupo do Bot TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
                 []
             );
         }
@@ -414,10 +414,10 @@ switch ($cmd) {
 
         $responseData = [
             'matchID' => $matchId,
-            'state' => '',
+            'state' => 'ERRO',
             'nickname' => $nickname,
             'opponent_id' => $opponent_id,
-            'dateTime' => '',
+            'dateTime' => 'ERRO',
             'tournament' => $match['tournament'],
         ];
 
@@ -426,6 +426,7 @@ switch ($cmd) {
         }
         $sched = getMatchSchedule($matchId);
 
+        //TODO se p1 ou p2 é o rithchie, não permitir play pq é uma partida de pole position, não precisa agendar nem play
         if (!$sched) respond("❌ Não há agendamentos propostos ou confirmados para a partida #$matchId.\n\nUse /agendar ID para agendar.");
 
         $now = time();
@@ -488,6 +489,8 @@ switch ($cmd) {
         }
 
         // Bloqueio Ritchie / Pole Position
+        //TODO permitir resultado para partidas de pole position, mas não permitir agendamento nem play
+        //TODO checar se o ADMIN já informou o resultado, se sim, não permitir informar novamente
         if (isComputerMatch($match)) {
             respond("🚫 *Atenção:* Não é necessário informar resultado para partida de Pole Position (contra o Ritchie / Computador).", ['state' => 'ERRO_PARTIDA_COMPUTADOR']);
         }
@@ -501,18 +504,19 @@ switch ($cmd) {
         $p1Tg = getTelegramIdByPilotId($p1Id);
         $p2Tg = getTelegramIdByPilotId($p2Id);
 
+        //TODO arrumar o CamelCase em todos os campos de nickname, nome, nickname_TGC, nicknameTGC, etc. para manter consistência
         // Se passar apenas /resultado ID (sem argumento de vencedor/empate/woduplo)
         $winnerInput = isset($parts[2]) ? trim(implode(' ', array_slice($parts, 2))) : ($input['message']['winner'] ?? ($input['message']['winnerId'] ?? null));
 
         if ($winnerInput === null || $winnerInput === '') {
             $responseData = [
                 'matchID' => $matchId,
-                'player_1' => [
+                'player1ID' => [
                     'id' => $p1Id,
                     'name' => $nick1,
                     'phoneNumberID' => $p1Tg
                 ],
-                'player_2' => [
+                'player2ID' => [
                     'id' => $p2Id,
                     'name' => $nick2,
                     'phoneNumberID' => $p2Tg
@@ -628,7 +632,6 @@ switch ($cmd) {
             'winner_id' => $winnerId,
             'winner_name' => $winName
         ]);
-        break;
 
     case '/agendar':
         $parts = explode(' ', $function);
@@ -747,7 +750,7 @@ switch ($cmd) {
 
         $responseData = [
             'matchID' => $matchId,
-            'state' => '',
+            'state' => 'ERRO',
             'nickname' => $nickname,
             'opponent_id' => $opponent_id,
             'dateTime' => $dbFormattedDate,
@@ -871,6 +874,7 @@ switch ($cmd) {
 
         $matches = getJson(FILE_MATCHES);
         $match = null;
+        unset($m);
         foreach ($matches as $m) { if ($m['id'] == $matchId) { $match = $m; break; } }
         if (!$match) respond("❌ Partida #$matchId não encontrada para confirmação.");
 
@@ -899,7 +903,6 @@ switch ($cmd) {
         ];
 
         respond("✅ *Agendamento Confirmado!*\n\nA partida está oficialmente agendada. O seu oponente será notificado.\n\nNo dia do jogo, lembre-se de usar */play {$matchId}*.", $responseData);
-        break;
 
     default:
         respond("❓ Comando não reconhecido ou não suportado via API.");
