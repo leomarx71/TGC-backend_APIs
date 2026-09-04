@@ -206,7 +206,7 @@ if (!$currentPilot && !isAdmin($pilotID) && !$isPublic) {
 }
 
 if (!$currentPilot && isAdmin($pilotID)) {
-    $currentPilot = ['id' => 0, 'nome' => 'Admin', 'nickname_TGC' => 'ADMIN'];
+    $currentPilot = ['id' => 0, 'name' => 'Admin', 'nicknameTGC' => 'ADMIN'];
 }
 
 // =================================================================================
@@ -259,9 +259,9 @@ switch ($cmd) {
         $newPilot = [
             'id' => getNextId($pilots),
             'phoneNumberID' => $pilotID,
-            'nome' => "Piloto API",
-            'nickname_TGC' => "Piloto_API",
-            'ativo' => 1,
+            'name' => "Piloto API",
+            'nicknameTGC' => "Piloto_API",
+            'active' => 1,
             'createdAt' => date('Y-m-d H:i:s')
         ];
         $pilots[] = $newPilot;
@@ -285,11 +285,11 @@ switch ($cmd) {
             $pilots = getJson(FILE_PILOTS);
             foreach ($pilots as &$p) {
                 if ($p['phoneNumberID'] == $pilotID) {
-                    if (isset($p['last_nick_change']) && strtotime($p['last_nick_change']) > strtotime('-90 days') && !isAdmin($pilotID)) {
+                    if (isset($p['lastNickChange']) && strtotime($p['lastNickChange']) > strtotime('-90 days') && !isAdmin($pilotID)) {
                         respond("⚠️ Alteração bloqueada. Aguarde 90 dias entre mudanças.");
                     }
                     $p['nicknameTGC'] = $args;
-                    $p['last_nick_change'] = date('Y-m-d H:i:s');
+                    $p['lastNickChange'] = date('Y-m-d H:i:s');
                     saveJson(FILE_PILOTS, $pilots);
                     respond("✅ Nickname alterado para: *$args*");
                 }
@@ -402,13 +402,13 @@ switch ($cmd) {
 
         $p1Id = $match['player1ID'];
         $p2Id = $match['player2ID'];
-        $opponent_id = null;
+                $opponentID = null;
 
         if ($p1Id == $currentPilot['id']) {
-            $opponent_id = getTelegramIdByPilotId($p2Id) ;
+                    $opponentID = getTelegramIdByPilotId($p2Id) ;
             $nickname = getPilotDisplayNameByNick(getPilotById($p2Id));
         } else if ($p2Id == $currentPilot['id']) {
-            $opponent_id = getTelegramIdByPilotId($p1Id) ;
+                    $opponentID = getTelegramIdByPilotId($p1Id) ;
             $nickname = getPilotDisplayNameByNick(getPilotById($p1Id));
         }
 
@@ -416,8 +416,8 @@ switch ($cmd) {
             'matchID' => $matchId,
             'state' => 'ERRO',
             'nickname' => $nickname,
-            'opponent_id' => $opponent_id,
-            'dateTime' => 'ERRO',
+                    'opponentID' => $opponentID,
+            'bookingDate' => 'ERRO',
             'tournament' => $match['tournament'],
         ];
 
@@ -430,11 +430,11 @@ switch ($cmd) {
         if (!$sched) respond("❌ Não há agendamentos propostos ou confirmados para a partida #$matchId.\n\nUse /agendar ID para agendar.");
 
         $now = time();
-        $dtTimestamp = strtotime($sched['dateTime']);
+        $dtTimestamp = strtotime($sched['bookingDate']);
         $formattedTime = date('d/m H:i', $dtTimestamp);
         $windowStartTime = date('H:i', $dtTimestamp - 1800);
         $windowEndTime = date('H:i', $dtTimestamp + 1800);
-        $responseData['dateTime'] = $formattedTime;
+        $responseData['bookingDate'] = $formattedTime;
 
         // Primeiro verifica a janela de tempo, independentemente do status
         if ($now < ($dtTimestamp - 1800)) {
@@ -558,16 +558,16 @@ switch ($cmd) {
 
             if ($p1) {
                 if ((string)$p1Id === $winnerStr) $isP1 = true;
-                if (!empty($p1['nickname_TGC']) && mb_strtolower(trim($p1['nickname_TGC'])) === $winnerStrLower) $isP1 = true;
-                if (!empty($p1['nome']) && mb_strtolower(trim($p1['nome'])) === $winnerStrLower) $isP1 = true;
+                            if (!empty($p1['nicknameTGC']) && mb_strtolower(trim($p1['nicknameTGC'])) === $winnerStrLower) $isP1 = true;
+                            if (!empty($p1['name']) && mb_strtolower(trim($p1['name'])) === $winnerStrLower) $isP1 = true;
                 if (mb_strtolower(trim($nick1)) === $winnerStrLower) $isP1 = true;
                 if ($winnerStrLower === '1') $isP1 = true;
             }
 
             if ($p2) {
                 if ((string)$p2Id === $winnerStr) $isP2 = true;
-                if (!empty($p2['nickname_TGC']) && mb_strtolower(trim($p2['nickname_TGC'])) === $winnerStrLower) $isP2 = true;
-                if (!empty($p2['nome']) && mb_strtolower(trim($p2['nome'])) === $winnerStrLower) $isP2 = true;
+                if (!empty($p2['nicknameTGC']) && mb_strtolower(trim($p2['nicknameTGC'])) === $winnerStrLower) $isP2 = true;
+                                if (!empty($p2['name']) && mb_strtolower(trim($p2['name'])) === $winnerStrLower) $isP2 = true;
                 if (mb_strtolower(trim($nick2)) === $winnerStrLower) $isP2 = true;
                 if ($winnerStrLower === '2') $isP2 = true;
             }
@@ -588,7 +588,7 @@ switch ($cmd) {
         $allMatches = getJson(FILE_MATCHES);
         foreach ($allMatches as &$m) {
             if ($m['id'] == $matchId) {
-                $m['winner_id'] = $winnerId;
+                            $m['winnerID'] = $winnerId;
                 $m['status'] = 'CONCLUIDO';
                 break;
             }
@@ -603,8 +603,8 @@ switch ($cmd) {
                 $s['resultWinnerID'] = $winnerId;
                 $s['resultConfirmedBy'] = $pilotID;
                 $s['updatedAt'] = date('Y-m-d H:i:s');
-                unset($s['result_temp_winner']);
-                unset($s['result_proposal_by']);
+                unset($s['resultTempWinner']);
+                                unset($s['resultProposalBy']);
                 $schedFound = true;
                 break;
             }
@@ -622,15 +622,15 @@ switch ($cmd) {
         }
         saveJson(FILE_SCHEDULES, $schedules);
 
-        saveAudit($matchId, 0, 'RESULTADO confirmado por ADMIN', "Decidido por: " . ($currentPilot['nome'] ?? 'Admin'));
+        saveAudit($matchId, 0, 'RESULTADO confirmado por ADMIN', "Decidido por: " . ($currentPilot['name'] ?? 'Admin'));
 
         $resultLabel = ($winnerId == 0) ? "Resultado da partida {$matchId}: 🤝 *EMPATE*" : ($winnerId == -1 ? "👉 Resultado da partida {$matchId}: 🚫 *W.O. DUPLO*" : "Resultado da partida {$matchId} foi: 🏆 *Vencedor: {$winName}*");
         $msg = "👮‍♂️ *Resultado Definido por Admin*\n\n{$resultLabel}\n\nResultado registrado com sucesso.";
         respond($msg, [
             'state' => 'FINALIZADO_ADMIN',
             'matchID' => $matchId,
-            'winner_id' => $winnerId,
-            'winner_name' => $winName
+                    'winnerID' => $winnerId,
+                    'winnerName' => $winName
         ]);
 
     case '/agendar':
@@ -655,7 +655,7 @@ switch ($cmd) {
         $responseData = [
             'matchID' => $matchId,
             'state' => $sched['status'],
-            'opponent_id' => getTelegramIdByPilotId($match['player2ID'])
+            'opponentID' => getTelegramIdByPilotId($match['player2ID'])
         ];
 
         if (!$match) {
@@ -680,7 +680,7 @@ switch ($cmd) {
             $prazo = date('d/m H:i', strtotime($match['deadline']));
 
         } else {
-            $dt = date('d/m H:i', strtotime($sched['dateTime']));
+            $dt = date('d/m H:i', strtotime($sched['bookingDate']));
             $proposerId = $sched['proposedByPilotID'];
             $isMeProposer = ($proposerId == $currentPilot['id']);
 
@@ -738,13 +738,13 @@ switch ($cmd) {
 
         $p1Id = $match['player1ID'];
         $p2Id = $match['player2ID'];
-        $opponent_id = null;
+                $opponentID = null;
 
         if ($p1Id == $currentPilot['id']) {
-            $opponent_id = getTelegramIdByPilotId($p2Id) ;
+                    $opponentID = getTelegramIdByPilotId($p2Id) ;
             $nickname = getPilotDisplayNameByNick(getPilotById($p2Id));
         } else if ($p2Id == $currentPilot['id']) {
-            $opponent_id = getTelegramIdByPilotId($p1Id) ;
+                    $opponentID = getTelegramIdByPilotId($p1Id) ;
             $nickname = getPilotDisplayNameByNick(getPilotById($p1Id));
         }
 
@@ -752,8 +752,8 @@ switch ($cmd) {
             'matchID' => $matchId,
             'state' => 'ERRO',
             'nickname' => $nickname,
-            'opponent_id' => $opponent_id,
-            'dateTime' => $dbFormattedDate,
+                    'opponentID' => $opponentID,
+            'bookingDate' => $dbFormattedDate,
             'tournament' => $match['tournament'],
         ];
 
@@ -796,7 +796,7 @@ switch ($cmd) {
 
         $newSchedule = [
             'matchID' => $matchId,
-            'dateTime' => $dbFormattedDate,
+            'bookingDate' => $dbFormattedDate,
             'status' => 'PROPOSTO',
             'proposedByPilotID' => $currentPilot['id'],
             'createdAt' => date('Y-m-d H:i:s')
@@ -880,25 +880,25 @@ switch ($cmd) {
 
         $p1Id = $match['player1ID'] ;
         $p2Id = $match['player2ID'] ;
-        $opponent_id = null;
+                $opponentID = null;
 
         if ($p1Id == $currentPilot['id']) {
-            $opponent_id = getTelegramIdByPilotId($p2Id) ;
+                    $opponentID = getTelegramIdByPilotId($p2Id) ;
             $nickname = getPilotDisplayNameByNick(getPilotById($p2Id));
         } else if ($p2Id == $currentPilot['id']) {
-            $opponent_id = getTelegramIdByPilotId($p1Id) ;
+                    $opponentID = getTelegramIdByPilotId($p1Id) ;
             $nickname = getPilotDisplayNameByNick(getPilotById($p1Id));
         }
 
-        $dtTimestamp = strtotime($schedules[$existingIndex]['dateTime']);
+        $dtTimestamp = strtotime($schedules[$existingIndex]['bookingDate']);
         $formattedTime = date('d/m H:i', $dtTimestamp);
 
         $responseData = [
             'matchID' => $matchId,
             'state' => 'CONFIRMADO',
             'nickname' => $nickname,
-            'opponent_id' => $opponent_id,
-            'dateTime' => $formattedTime,
+            'opponentID' => $opponentID,
+            'bookingDate' => $formattedTime,
             'tournament' => $match['tournament'],
         ];
 
