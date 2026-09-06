@@ -902,7 +902,71 @@ switch ($cmd) {
             'tournament' => $match['tournament'],
         ];
 
-        respond("✅ *Agendamento Confirmado!*\n\nA partida está oficialmente agendada. O seu oponente será notificado.\n\nNo dia do jogo, lembre-se de usar */play {$matchId}*.", $responseData);
+        respond("✅ *Agendamento Confirmado!*\n\nA partida está oficialmente agendada. O seu oponente será notificado.
+        \n\nNo dia do jogo, lembre-se de usar */play {$matchId}*.", $responseData);
+
+    case '/poleposition':
+        $parts = explode(' ', $function);
+        $matchId = intval($parts[1]);
+        $matches = getJson(FILE_MATCHES);
+        $match = null;
+        foreach ($matches as $m) {
+            if ($m['id'] == $matchId) { $match = $m; break; }
+        }
+
+        if ($pilotID == 351935525827) {
+            $responseData = ['state' => 'ERRO_NAO_PERTENCE'];
+            respond( "❌ Este comando não pode ser utilizado em grupos.\n\n" .
+                "Envie uma mensagem privada para o TopGearTGCBot +351935525827 e execute o comando por lá.", $responseData );
+        }
+
+        if (!$match) {
+            $responseData = ['state' => 'ERRO_NAO_ENCONTRADO'];
+            respond("❌ Partida não encontrada. \n\nRevise o número com o */partidas*", $responseData);
+        }
+
+        if ($match['status'] == "PARTIDA_FINALIZADA") {
+            $responseData = ['state' => 'RODADA_FINALIZADA'];
+            respond("🚫 *Atenção:* Infelizmente essa rodada já encerrou\n\nRevise o número da rodada ativa com o */partidas* ).", $responseData);
+        }
+
+        $p1Id = $match['player1ID'] ;
+        $p2Id = $match['player2ID'] ;
+
+        if ($p1Id != $currentPilot['id'] && $p2Id != $currentPilot['id']) {
+            $responseData = ['state' => 'ERRO_NAO_PERTENCE'];
+            respond("❌ Esta partida não é sua. \n\nRevise o número com o */partidas*", $responseData);
+        }
+
+        $rounds = getJson(FILE_ROUNDS_T6);
+        $round = null;
+        foreach ($rounds as $r) {
+            if ($r['name'] == $m['groupName']) { $round = $r; break; }
+        }
+
+        $allTracks = getJson(FILE_ALLTRACKS);
+        $tracksInThisRound = [];
+        $index=0;
+        foreach ($allTracks as $track) {
+            if ($track['id'] == $r['tracks'][$index]) {
+                $tracksInThisRound[$index] = $track;
+                $index++;
+            }
+        }
+
+        $msg = "🏁 *Pole Position - Partida #$matchId*\n\n";
+        $msg .= "🏆 Torneio: {$match['tournament']}\n";
+        $msg .= "👤 Player 1: " . getPilotDisplayNameByNick(getPilotById($p1Id)) . "\n";
+        $msg .= "👤 Player 2: " . getPilotDisplayNameByNick(getPilotById($p2Id)) . "\n";
+        $msg .= "📅 Data Limite: " . date('d/m H:i', strtotime($match['deadline'])) . "\n";
+        $msg .= "📝 Pistas da Rodada:\n";
+        foreach ($tracksInThisRound as $track) {
+            $msg .= "   - " . $track['name'] . "\n";
+        }
+        $msg .= "\nEnvie agora os tempos!";
+        $responseData = ['state' => 'PENDENTE_TEMPOS', 'tracks' => $tracksInThisRound];
+
+        respond($msg, $responseData);
 
     default:
         respond("❓ Comando não reconhecido ou não suportado via API.");

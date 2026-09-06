@@ -375,7 +375,7 @@ if (isset($_POST['edit_match_id'])) {
         $updated = false;
 
         $newDeadline = $newDate . " 23:59:59";
-        $newGroupName = ($resolvedPhaseId === "F1") ? "Grupo $newGroupNum" : $resolvedPhaseName;
+        $newGroupName = ($resolvedPhaseId === "F1") ? "Grupo $newGroupNum" : (($resolvedPhaseId === "F7") ? "Rodada $newGroupNum" : $resolvedPhaseName);
 
         foreach($currentMatches as &$m) {
             if (($m['id'] ?? null) == $editId) {
@@ -447,10 +447,10 @@ if (isset($_POST['clone_match_id'])) {
 
         if ($sourceMatch) {
             $newDeadline = $cloneDate . " 23:59:59";
-            $newGroupName = ($clonePhase === "Fase de Grupos") ? "Grupo $cloneGroupNum" : $clonePhase;
-            
-            // Criar nova partida baseada na origem
             $resolvedClonePhaseId = normalizePhaseId($clonePhase, $phases);
+            $newGroupName = ($resolvedClonePhaseId === "F1") ? "Grupo $cloneGroupNum" : (($resolvedClonePhaseId === "F7") ? "Rodada $cloneGroupNum" : getPhaseNameById($resolvedClonePhaseId, $phases));
+             
+            // Criar nova partida baseada na origem
             $resolvedClonePhaseName = getPhaseNameById($resolvedClonePhaseId, $phases);
             $resolvedCloneTournamentId = normalizeTournamentId($sourceMatch['tournamentId'] ?? ($sourceMatch['tournament'] ?? ''), $tournaments);
             $newMatch = [
@@ -662,7 +662,7 @@ if (isset($_POST['gerar_partidas'])) {
     $drawType = $_POST['draw_type'] ?? '';
     $dateInput = $_POST['deadline_date'] ?? ''; 
     $prazoFinal = $dateInput ? $dateInput . " 23:59:59" : date('Y-m-d 23:59:59', strtotime('+7 days'));
-    $groupName = ($selPhaseId === "F1") ? "Grupo $selGroupNum" : getPhaseNameById($selPhaseId, $phases);
+    $groupName = ($selPhaseId === "F1") ? "Grupo $selGroupNum" : (($selPhaseId === "F7") ? "Rodada $selGroupNum" : getPhaseNameById($selPhaseId, $phases));
 
     $localArray = []; 
     
@@ -894,7 +894,62 @@ if (is_array($pilots)) {
             });
         }
 
-        function toggleGroupSelect(val) { document.getElementById('group_container').classList.toggle('hidden', val !== 'F1'); }
+        function normalizePhaseKey(val) {
+            if (val === 'Fase de Grupos') return 'F1';
+            if (val === 'Rodada Atual') return 'F7';
+            return val;
+        }
+
+        function buildGroupRangeOptions(phaseValue, selectId) {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+
+            const normalizedPhase = normalizePhaseKey(phaseValue);
+            const maxRange = normalizedPhase === 'F1' ? 8 : (normalizedPhase === 'F7' ? 30 : 0);
+            const labelPrefix = normalizedPhase === 'F1' ? 'Grupo' : (normalizedPhase === 'F7' ? 'Rodada' : '');
+
+            if (maxRange === 0) {
+                select.innerHTML = '<option value="1">1</option>';
+                select.value = '1';
+                return;
+            }
+
+            const options = [];
+            for (let i = 1; i <= maxRange; i++) {
+                options.push('<option value="' + i + '">' + labelPrefix + ' ' + i + '</option>');
+            }
+            select.innerHTML = options.join('');
+
+            const currentValue = Number(select.dataset.currentValue || 1);
+            const safeValue = currentValue > maxRange ? maxRange : Math.max(1, currentValue);
+            select.value = String(safeValue);
+            select.dataset.currentValue = String(safeValue);
+        }
+
+        function setGroupSelectionFromMatch(selectId, groupName, phaseValue) {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+
+            const normalizedPhase = normalizePhaseKey(phaseValue);
+            buildGroupRangeOptions(normalizedPhase, selectId);
+
+            const match = (groupName || '').match(/\d+/);
+            const extractedValue = match ? match[0] : '1';
+            const maxRange = normalizedPhase === 'F1' ? 8 : (normalizedPhase === 'F7' ? 30 : 1);
+            const numericValue = Math.min(Math.max(Number(extractedValue) || 1, 1), maxRange);
+            select.value = String(numericValue);
+            select.dataset.currentValue = String(numericValue);
+        }
+
+        function toggleGroupSelect(val) {
+            const normalizedPhase = normalizePhaseKey(val);
+            const container = document.getElementById('group_container');
+            const shouldShow = normalizedPhase === 'F1' || normalizedPhase === 'F7';
+            container.classList.toggle('hidden', !shouldShow);
+            if (shouldShow) {
+                buildGroupRangeOptions(normalizedPhase, 'group_num');
+            }
+        }
         
         function switchDrawType(val) {
             // Esconder todos
@@ -913,15 +968,10 @@ if (is_array($pilots)) {
             document.getElementById('edit_match_id').value = id;
             document.getElementById('edit_match_title').innerText = "Editar Partida #" + id;
             
-            // Setar Fase
             const phaseSelect = document.getElementById('edit_phase');
             phaseSelect.value = phase;
             toggleEditGroupSelect(phase);
-
-            // Setar Grupo se for Fase de Grupos
-            if (phase === 'F1' || phase === 'Fase de Grupos') {
-                document.getElementById('edit_group_num').value = groupName.replace('Grupo ', '');
-            }
+            setGroupSelectionFromMatch('edit_group_num', groupName, phase);
 
             // Setar Pilotos
             document.getElementById('edit_p1').value = p1;
@@ -965,23 +1015,24 @@ if (is_array($pilots)) {
         }
         
         function toggleEditGroupSelect(val) {
-            document.getElementById('edit_group_container').classList.toggle('hidden', val !== 'F1');
+            const normalizedPhase = normalizePhaseKey(val);
+            const container = document.getElementById('edit_group_container');
+            const shouldShow = normalizedPhase === 'F1' || normalizedPhase === 'F7';
+            container.classList.toggle('hidden', !shouldShow);
+            if (shouldShow) {
+                buildGroupRangeOptions(normalizedPhase, 'edit_group_num');
+            }
         }
 
         // Modal de Clonagem
         function openCloneModal(id, phase, groupName, p1, p2, deadline) {
             document.getElementById('clone_match_id').value = id;
             document.getElementById('clone_match_title').innerText = "Clonar Partida (Origem: #" + id + ")";
-             
-            // Setar Fase
+              
             const phaseSelect = document.getElementById('clone_phase');
             phaseSelect.value = phase;
             toggleCloneGroupSelect(phase);
-
-            // Setar Grupo
-            if (phase === 'F1' || phase === 'Fase de Grupos') {
-                document.getElementById('clone_group_num').value = groupName.replace('Grupo ', '');
-            }
+            setGroupSelectionFromMatch('clone_group_num', groupName, phase);
 
             // Setar Pilotos
             document.getElementById('clone_p1').value = p1;
@@ -998,8 +1049,20 @@ if (is_array($pilots)) {
         }
         
         function toggleCloneGroupSelect(val) {
-            document.getElementById('clone_group_container').classList.toggle('hidden', val !== 'F1');
+            const normalizedPhase = normalizePhaseKey(val);
+            const container = document.getElementById('clone_group_container');
+            const shouldShow = normalizedPhase === 'F1' || normalizedPhase === 'F7';
+            container.classList.toggle('hidden', !shouldShow);
+            if (shouldShow) {
+                buildGroupRangeOptions(normalizedPhase, 'clone_group_num');
+            }
         }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleGroupSelect(document.querySelector('select[name="phase"]')?.value || 'F1');
+            toggleEditGroupSelect(document.getElementById('edit_phase')?.value || 'F1');
+            toggleCloneGroupSelect(document.getElementById('clone_phase')?.value || 'F1');
+        });
 
         // Modal de _Logs_ e Backups
         function openLogModal() { document.getElementById('logModal').classList.remove('hidden'); }
@@ -1148,6 +1211,11 @@ if (is_array($pilots)) {
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                        <div id="group_container">
+                            <select name="group_num" class="block w-full border-gray-300 rounded bg-gray-50 py-2 text-sm">
+                                <?php for($g=1; $g<=30; $g++): ?><option value="<?= $g ?>">Grupo/Rodada <?= $g ?></option><?php endfor; ?>
+                            </select>
+                        </div>
                     </label>
                 </div>
                 <!-- 3. PILOTOS (COM NICKNAME) -->
@@ -1587,7 +1655,7 @@ if (is_array($pilots)) {
             <form method="POST" class="p-6 space-y-4">
                 <input type="hidden" name="edit_match_id" id="edit_match_id">
                 
-                <!-- Fase e Grupo -->
+                <!-- Fase e Grupo/Rodada -->
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Fase</label>
                     <label for="edit_phase"></label>
@@ -1596,10 +1664,10 @@ if (is_array($pilots)) {
                     </select>
                 </div>
                 <div id="edit_group_container" class="hidden">
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Número do Grupo</label>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Número do Grupo/Rodada</label>
                     <label for="edit_group_num"></label>
                     <select name="edit_group_num" id="edit_group_num" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
-                        <?php for($g=1; $g<=8; $g++): ?><option value="<?= $g ?>"><?= $g ?></option><?php endfor; ?>
+                        <?php for($g=1; $g<=30; $g++): ?><option value="<?= $g ?>"><?= $g ?></option><?php endfor; ?>
                     </select>
                 </div>
 
@@ -1657,7 +1725,7 @@ if (is_array($pilots)) {
             <form method="POST" class="p-6 space-y-4">
                 <input type="hidden" name="clone_match_id" id="clone_match_id">
                 
-                <!-- Fase e Grupo -->
+                <!-- Fase e Grupo/Rodada-->
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Fase</label>
                     <label for="clone_phase"></label>
@@ -1666,10 +1734,10 @@ if (is_array($pilots)) {
                     </select>
                 </div>
                 <div id="clone_group_container" class="hidden">
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Número do Grupo</label>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Número do Grupo/Rodada</label>
                     <label for="clone_group_num"></label>
                     <select name="clone_group_num" id="clone_group_num" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
-                        <?php for($g=1; $g<=8; $g++): ?><option value="<?= $g ?>"><?= $g ?></option><?php endfor; ?>
+                        <?php for($g=1; $g<=30; $g++): ?><option value="<?= $g ?>"><?= $g ?></option><?php endfor; ?>
                     </select>
                 </div>
 

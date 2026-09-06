@@ -1,6 +1,7 @@
 [
   {
-    "round": 1,
+    "id": 1,
+    "name": "Rodada 1",
     "tracks": [
       22,
       26,
@@ -11,10 +12,12 @@
       28,
       13
     ],
-    deadline: "2026-01-19 20:15:00"
+    "deadline": "2026-01-19 20:15:00",
+    "status": "RODADA_FINALIZADA"
   },
   {
-    "round": 2,
+    "id": 2,
+    "name": "Rodada 2",
     "tracks": [
       25,
       29,
@@ -25,6 +28,7 @@
       18,
       23
     ],
-    deadline: "2026-01-19 20:15:00"
+    "deadline": "2026-01-19 20:15:00",
+    "status": "PENDENTE"
   }
 ]
