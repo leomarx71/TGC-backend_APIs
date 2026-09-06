@@ -133,6 +133,19 @@ if (!defined('FILE_LOG_BOT')) {
     define('FILE_LOG_BOT', LOG_DIR . '/botMain.log');
 }
 
+
+// ============================================================
+// DEFINIR CONSTANTES DOS TORNEIOS
+// ============================================================
+
+if (!defined('FILE_ROUNDS_T6')) {
+    define('FILE_ROUNDS_T6', TOURNAMENTS_DATA_DIR . '/T6_TGC_Pole_Position/rounds.json');
+}
+
+if (!defined('FILE_ALLTRACKS')) {
+    define('FILE_ALLTRACKS', GENERAL_DATA_DIR . '/allTracks.json');
+}
+
 // ============================================================
 // CONFIGURAR TIMEZONE
 // ============================================================
