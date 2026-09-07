@@ -1,7 +1,7 @@
 [
   {
     "id": 1,
-    "roundID": 1,
+    "matchID": 1,
     "pilotID": 1,
     "totalTime": 1352280,
 
@@ -28,7 +28,7 @@
   },
   {
     "id": 2,
-    "roundID": 2,
+    "matchID": 2,
     "pilotID": 2,
     "totalTime": 1352280,
 
