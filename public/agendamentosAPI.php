@@ -249,8 +249,8 @@ switch ($cmd) {
         // Comando enviado em grupo
         if ($pilotID == 351935525827) {
             respond(
-                "❌ Este comando não pode ser utilizado em grupos.\n\n" .
-                "Envie uma mensagem lá no grupo do Bot TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
+                "❌ Só consigo processar uma mensagem por vez! \n\nReenvie novamente o comando...\n\n" .
+                "Link do Bot TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
                 []
             );
         }
@@ -272,8 +272,8 @@ switch ($cmd) {
         // Comando enviado em grupo
         if ($pilotID == 351935525827) {
             respond(
-                "❌ Este comando não pode ser utilizado em grupos.\n\n" .
-                "Envie uma mensagem lá no grupo do Bot TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
+                "❌ Só consigo processar uma mensagem por vez! \n\nReenvie novamente o comando...\n\n" .
+                "Link do Bot TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
                 []
             );
         }
@@ -304,8 +304,8 @@ switch ($cmd) {
         // Comando enviado em grupo
         if ($pilotID == 351935525827) {
             respond(
-                "❌ Este comando não pode ser utilizado em grupos.\n\n" .
-                "Envie uma mensagem lá no grupo do Bot TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
+                "❌ Só consigo processar uma mensagem por vez! \n\nReenvie novamente o comando...\n\n" .
+                "Link do Bot TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
                 []
             );
         }
@@ -357,11 +357,11 @@ switch ($cmd) {
 
     case '/audit':
         $parts = explode(' ', $function);
-        $matchId = intval($parts[1] ?? 0);
-        if (!$matchId) respond("❌ Use: /audit ID");
-        $audits = array_filter(getJson(FILE_AUDIT), function($a) use ($matchId) { return $a['matchID'] == $matchId; });
-        if (empty($audits)) respond("📭 Nenhum registro para partida #$matchId");
-        $msg = "🕵️‍♂️ *Auditoria Partida #$matchId*\n\n";
+        $matchID = intval($parts[1] ?? 0);
+        if (!$matchID) respond("❌ Use: /audit ID");
+        $audits = array_filter(getJson(FILE_AUDIT), function($a) use ($matchID) { return $a['matchID'] == $matchID; });
+        if (empty($audits)) respond("📭 Nenhum registro para partida #$matchID");
+        $msg = "🕵️‍♂️ *Auditoria Partida #$matchID*\n\n";
 
         $auditData = [];
         foreach ($audits as $a) {
@@ -383,19 +383,19 @@ switch ($cmd) {
 
     case '/play':
         $parts = explode(' ', $function);
-        $matchId = intval($parts[1] ?? 0);
-        if (!$matchId) respond("❌ Use: /play ID");
+        $matchID = intval($parts[1] ?? 0);
+        if (!$matchID) respond("❌ Use: /play ID");
 
         $matches = getJson(FILE_MATCHES);
         $match = null;
-        foreach ($matches as $m) { if ($m['id'] == $matchId) { $match = $m; break; } }
-        if (!$match) respond("❌ Partida #$matchId não encontrada.");
+        foreach ($matches as $m) { if ($m['id'] == $matchID) { $match = $m; break; } }
+        if (!$match) respond("❌ Partida #$matchID não encontrada.");
 
         // Comando enviado em grupo
         if ($pilotID == 351935525827) {
             respond(
-                "❌ Este comando não pode ser utilizado em grupos.\n\n" .
-                "Envie uma mensagem lá no grupo do Bot TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
+                "❌ Só consigo processar uma mensagem por vez! \n\nReenvie novamente o comando...\n\n" .
+                "Link do Bot TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
                 []
             );
         }
@@ -413,7 +413,7 @@ switch ($cmd) {
         }
 
         $responseData = [
-            'matchID' => $matchId,
+            'matchID' => $matchID,
             'state' => 'ERRO',
             'nickname' => $nickname,
                     'opponentID' => $opponentID,
@@ -424,10 +424,10 @@ switch ($cmd) {
         if ($match['player1ID'] != $currentPilot['id'] && $match['player2ID'] != $currentPilot['id'] && !isAdmin($pilotID)) {
             respond("❌ Você não participa desta partida.");
         }
-        $sched = getMatchSchedule($matchId);
+        $sched = getMatchSchedule($matchID);
 
         //TODO se p1 ou p2 é o rithchie, não permitir play pq é uma partida de pole position, não precisa agendar nem play
-        if (!$sched) respond("❌ Não há agendamentos propostos ou confirmados para a partida #$matchId.\n\nUse /agendar ID para agendar.");
+        if (!$sched) respond("❌ Não há agendamentos propostos ou confirmados para a partida #$matchID.\n\nUse /agendar ID para agendar.");
 
         $now = time();
         $dtTimestamp = strtotime($sched['bookingDate']);
@@ -442,31 +442,31 @@ switch ($cmd) {
             respond("⏳ Muito cedo.\nPartida está agendada para $formattedTime\n\nA janela de *play* abre de 30min antes do horário até 30min depois do horário.", $responseData);
         }
         if ($now > ($dtTimestamp + 1800)) {
-            saveAudit($matchId, $currentPilot['id'], 'JOGADOR_ATRASADO', 'Piloto tentou notificar disponibilidade após o horário agendado');
+            saveAudit($matchID, $currentPilot['id'], 'JOGADOR_ATRASADO', 'Piloto tentou notificar disponibilidade após o horário agendado');
             $responseData['state'] = 'JOGADOR_ATRASADO';
-            respond("❌ Oops, Muito tarde.\n⏳ Horário do play expirado.\nA partida estava agendada para $formattedTime\n\nUse */agendar $matchId* para agendar novamente.", $responseData);
+            respond("❌ Oops, Muito tarde.\n⏳ Horário do play expirado.\nA partida estava agendada para $formattedTime\n\nUse */agendar $matchID* para agendar novamente.", $responseData);
         }
 
         // Está dentro da janela de ±30 minutos. Agora verifica o status.
         if ($sched['status'] == 'CONFIRMADO') {
-            saveAudit($matchId, $currentPilot['id'], 'JOGADOR_PRONTO', 'Piloto compareceu corretamente no horário proposto');
+            saveAudit($matchID, $currentPilot['id'], 'JOGADOR_PRONTO', 'Piloto compareceu corretamente no horário proposto');
             $responseData['state'] = 'JOGADOR_PRONTO';
-            respond("✅ *Você chegou no horário!*\n\nNotificando o oponente que você está pronto para a partida.\nFique disponível para a resposta dele até o fim do período da janela de agendamento.\n\nPartida: 🆔 #$matchId!\nData Agendada: $formattedTime\nJanela Válida: de $windowStartTime até $windowEndTime", $responseData);
+            respond("✅ *Você chegou no horário!*\n\nNotificando o oponente que você está pronto para a partida.\nFique disponível para a resposta dele até o fim do período da janela de agendamento.\n\nPartida: 🆔 #$matchID!\nData Agendada: $formattedTime\nJanela Válida: de $windowStartTime até $windowEndTime", $responseData);
         }
         if ($sched['status'] == 'PROPOSTO') {
             $responseData['state'] = 'JOGADOR_PRONTO_SEM_AGENDAMENTO';
-            saveAudit($matchId, $currentPilot['id'], 'JOGADOR_PRONTO_SEM_AGENDAMENTO', 'Piloto compareceu no horário proposto, mas o oponente ainda não tinha confirmado');
-            respond("❌ O agendamento não havia sido confirmado pelo seu oponente para a partida ID $matchId.\nRegistrei sua presença e disponibilidade no horário proposto.\n\nUse */agendar ID* para agendar novamente.", $responseData);
+            saveAudit($matchID, $currentPilot['id'], 'JOGADOR_PRONTO_SEM_AGENDAMENTO', 'Piloto compareceu no horário proposto, mas o oponente ainda não tinha confirmado');
+            respond("❌ O agendamento não havia sido confirmado pelo seu oponente para a partida ID $matchID.\nRegistrei sua presença e disponibilidade no horário proposto.\n\nUse */agendar ID* para agendar novamente.", $responseData);
         }
 
         // Está dentro da janela, mas o status não permite /play
         $responseData['state'] = 'STATUS_PLAY_DESCONHECIDO';
-        respond("❌ O status atual para a partida #$matchId não permite play", $responseData);
+        respond("❌ O status atual para a partida #$matchID não permite play", $responseData);
 
     case '/resultado':
         $parts = explode(' ', $function);
-        $matchId = intval($parts[1] ?? 0);
-        if (!$matchId) {
+        $matchID = intval($parts[1] ?? 0);
+        if (!$matchID) {
             respond("❌ Use: /resultado ID", ['state' => 'ERRO_FALTA_ID']);
         }
 
@@ -478,7 +478,7 @@ switch ($cmd) {
         $matches = getJson(FILE_MATCHES);
         $match = null;
         foreach ($matches as $m) {
-            if ($m['id'] == $matchId) {
+            if ($m['id'] == $matchID) {
                 $match = $m;
                 break;
             }
@@ -510,7 +510,7 @@ switch ($cmd) {
 
         if ($winnerInput === null || $winnerInput === '') {
             $responseData = [
-                'matchID' => $matchId,
+                'matchID' => $matchID,
                 'player1ID' => [
                     'id' => $p1Id,
                     'name' => $nick1,
@@ -524,18 +524,18 @@ switch ($cmd) {
                 'state' => 'REQUER_RESULTADO_ADMIN'
             ];
 
-            $msg = "🏆 *Os pilotos dessa partida {$matchId} são:*\n\n";
+            $msg = "🏆 *Os pilotos dessa partida {$matchID} são:*\n\n";
             $msg .= "👤 *Player 1 =* {$nick1}\n";
             $msg .= "👤 *Player 2 =* {$nick2}\n\n";
             $msg .= "Para registrar o resultado, envie um dos comandos a seguir:\n\n";
             $msg .= "Se o resultado for Vitória de *{$nick1}*\n";
-            $msg .= "👉 /resultado {$matchId} {$nick1}\n";
+            $msg .= "👉 /resultado {$matchID} {$nick1}\n";
             $msg .= "Se o resultado for Vitória de *{$nick2}*\n";
-            $msg .= "👉 /resultado {$matchId} {$nick2}\n";
+            $msg .= "👉 /resultado {$matchID} {$nick2}\n";
             $msg .= "Se o resultado for *Empate*\n";
-            $msg .= "👉 /resultado {$matchId} empate\n";
+            $msg .= "👉 /resultado {$matchID} empate\n";
             $msg .= "Se o resultado for *W.O. Duplo*\n";
-            $msg .= "👉 /resultado {$matchId} woduplo";
+            $msg .= "👉 /resultado {$matchID} woduplo";
 
             respond($msg, $responseData);
         }
@@ -587,7 +587,7 @@ switch ($cmd) {
 
         $allMatches = getJson(FILE_MATCHES);
         foreach ($allMatches as &$m) {
-            if ($m['id'] == $matchId) {
+            if ($m['id'] == $matchID) {
                             $m['winnerID'] = $winnerId;
                 $m['status'] = 'CONCLUIDO';
                 break;
@@ -595,10 +595,10 @@ switch ($cmd) {
         }
         saveJson(FILE_MATCHES, $allMatches);
 
-        $schedules = getJson(FILE_SCHEDULES);
+        $results = getJson(FILE_SCHEDULES);
         $schedFound = false;
-        foreach ($schedules as &$s) {
-            if ($s['matchID'] == $matchId && ($s['status'] ?? '') != 'RECUSADO') {
+        foreach ($results as &$s) {
+            if ($s['matchID'] == $matchID && ($s['status'] ?? '') != 'RECUSADO') {
                 $s['status'] = 'PARTIDA_FINALIZADA';
                 $s['resultWinnerID'] = $winnerId;
                 $s['resultConfirmedBy'] = $pilotID;
@@ -610,9 +610,9 @@ switch ($cmd) {
             }
         }
         if (!$schedFound) {
-            $schedules[] = [
-                'id' => getNextId($schedules),
-                'matchID' => $matchId,
+            $results[] = [
+                'id' => getNextId($results),
+                'matchID' => $matchID,
                 'status' => 'PARTIDA_FINALIZADA',
                 'resultWinnerID' => $winnerId,
                 'resultConfirmedBy' => $pilotID,
@@ -620,40 +620,40 @@ switch ($cmd) {
                 'updatedAt' => date('Y-m-d H:i:s')
             ];
         }
-        saveJson(FILE_SCHEDULES, $schedules);
+        saveJson(FILE_SCHEDULES, $results);
 
-        saveAudit($matchId, 0, 'RESULTADO confirmado por ADMIN', "Decidido por: " . ($currentPilot['name'] ?? 'Admin'));
+        saveAudit($matchID, 0, 'RESULTADO confirmado por ADMIN', "Decidido por: " . ($currentPilot['name'] ?? 'Admin'));
 
-        $resultLabel = ($winnerId == 0) ? "Resultado da partida {$matchId}: 🤝 *EMPATE*" : ($winnerId == -1 ? "👉 Resultado da partida {$matchId}: 🚫 *W.O. DUPLO*" : "Resultado da partida {$matchId} foi: 🏆 *Vencedor: {$winName}*");
+        $resultLabel = ($winnerId == 0) ? "Resultado da partida {$matchID}: 🤝 *EMPATE*" : ($winnerId == -1 ? "👉 Resultado da partida {$matchID}: 🚫 *W.O. DUPLO*" : "Resultado da partida {$matchID} foi: 🏆 *Vencedor: {$winName}*");
         $msg = "👮‍♂️ *Resultado Definido por Admin*\n\n{$resultLabel}\n\nResultado registrado com sucesso.";
         respond($msg, [
             'state' => 'FINALIZADO_ADMIN',
-            'matchID' => $matchId,
+            'matchID' => $matchID,
                     'winnerID' => $winnerId,
                     'winnerName' => $winName
         ]);
 
     case '/agendar':
         $parts = explode(' ', $function);
-        $matchId = intval($parts[1]);
+        $matchID = intval($parts[1]);
         $matches = getJson(FILE_MATCHES);
         $match = null;
         foreach ($matches as $m) {
-            if ($m['id'] == $matchId) { $match = $m; break; }
+            if ($m['id'] == $matchID) { $match = $m; break; }
         }
 
         // Comando enviado em grupo
         if ($pilotID == 351935525827) {
             respond(
-                "❌ Este comando não pode ser utilizado em grupos.\n\n" .
-                "Envie uma mensagem privada para o TopGearTGCBot +351935525827 e execute o comando por lá.",
+                "❌ Só consigo processar uma mensagem por vez! \n\nReenvie novamente o comando...\n\n" .
+                "Link do TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
                 []
             );
         }
-        $sched = getMatchSchedule($matchId);
+        $sched = getMatchSchedule($matchID);
         $msg = "";
         $responseData = [
-            'matchID' => $matchId,
+            'matchID' => $matchID,
             'state' => $sched['status'],
             'opponentID' => getTelegramIdByPilotId($match['player2ID'])
         ];
@@ -675,7 +675,7 @@ switch ($cmd) {
         }
 
         if (!$sched) {
-            $msg = "📅 *Agendamento #$matchId*\n\nNenhuma proposta ativa no momento.\n\nResponda as próximas mensagens com sua disponibilidade.";
+            $msg = "📅 *Agendamento #$matchID*\n\nNenhuma proposta ativa no momento.\n\nResponda as próximas mensagens com sua disponibilidade.";
             $responseData['state'] = 'REQUER_PROPOSTA';
             $prazo = date('d/m H:i', strtotime($match['deadline']));
 
@@ -708,17 +708,17 @@ switch ($cmd) {
 
     case '/proposal':
         $parts = explode(' ', $function);
-        $matchId = intval($parts[1] ?? 0);
+        $matchID = intval($parts[1] ?? 0);
 
-        if (!$matchId || empty($bookDate) || empty($bookTime)) {
+        if (!$matchID || empty($bookDate) || empty($bookTime)) {
             respond("❌ Falta de parâmetros. Envie data e hora corretos.");
         }
 
         $matches = getJson(FILE_MATCHES);
         $match = null;
-        foreach ($matches as $m) if ($m['id'] == $matchId) { $match = $m; break; }
+        foreach ($matches as $m) if ($m['id'] == $matchID) { $match = $m; break; }
 
-        if (!$match) respond("❌ Partida #$matchId não encontrada.");
+        if (!$match) respond("❌ Partida #$matchID não encontrada.");
 
         // Ajuste de Data
         $currentYear = date('Y');
@@ -738,21 +738,21 @@ switch ($cmd) {
 
         $p1Id = $match['player1ID'];
         $p2Id = $match['player2ID'];
-                $opponentID = null;
+        $opponentID = null;
 
         if ($p1Id == $currentPilot['id']) {
-                    $opponentID = getTelegramIdByPilotId($p2Id) ;
+            $opponentID = getTelegramIdByPilotId($p2Id) ;
             $nickname = getPilotDisplayNameByNick(getPilotById($p2Id));
         } else if ($p2Id == $currentPilot['id']) {
-                    $opponentID = getTelegramIdByPilotId($p1Id) ;
+            $opponentID = getTelegramIdByPilotId($p1Id) ;
             $nickname = getPilotDisplayNameByNick(getPilotById($p1Id));
         }
 
         $responseData = [
-            'matchID' => $matchId,
+            'matchID' => $matchID,
             'state' => 'ERRO',
             'nickname' => $nickname,
-                    'opponentID' => $opponentID,
+            'opponentID' => $opponentID,
             'bookingDate' => $dbFormattedDate,
             'tournament' => $match['tournament'],
         ];
@@ -760,7 +760,7 @@ switch ($cmd) {
         if ($proposedTimestamp > $deadlineTimestamp) {
             $limiteF = date('d/m/Y \à\s H:i', $deadlineTimestamp);
             $responseData['state'] = 'FORA_DO_PRAZO';
-            respond("❌ Oops não foi possível finalizar\n\n*Atenção!* A data proposta ultrapassa o prazo final da partida, que é: *$limiteF*.\n\nPor favor, reinicie o processo com */agendar $matchId* e tente novamente com uma data válida.", $responseData);
+            respond("❌ Oops não foi possível finalizar\n\n*Atenção!* A data proposta ultrapassa o prazo final da partida, que é: *$limiteF*.\n\nPor favor, reinicie o processo com */agendar $matchID* e tente novamente com uma data válida.", $responseData);
         }
 
         // Validação de antecedência mínima de 2 horas
@@ -770,7 +770,7 @@ switch ($cmd) {
             $minimoTimestamp = $nowTimestamp + 7200;
             $minimoF = date('d/m/Y \à\s H:i', $minimoTimestamp);
             $responseData['state'] = 'MENOS_DE_2_HORAS';
-            respond("❌ Oops não foi possível finalizar\n\n*Atenção!* O horário proposto deve ser de pelo menos 2 horas a partir de agora.\n\nO primeiro horário permitido é: *$minimoF*.\n\nPor favor, reinicie o processo com */agendar $matchId* e tente novamente com uma data válida.", $responseData);
+            respond("❌ Oops não foi possível finalizar\n\n*Atenção!* O horário proposto deve ser de pelo menos 2 horas a partir de agora.\n\nO primeiro horário permitido é: *$minimoF*.\n\nPor favor, reinicie o processo com */agendar $matchID* e tente novamente com uma data válida.", $responseData);
         }
 
         // Formatações solicitadas (MM/DD/YYYY e 12h AM/PM)
@@ -781,21 +781,21 @@ switch ($cmd) {
         $msg = "📨 Solicitação de agendamento enviada com sucesso!\nAguarde a confirmação do seu oponente.\n\n";
         $msg .= "📝 *Resumo da Proposta*\n\n";
         $msg .= "🏆 Torneio: {$tournament}\n";
-        $msg .= "🆔 Partida: {$matchId}\n";
+        $msg .= "🆔 Partida: {$matchID}\n";
         $msg .= "📅 Data: {$formattedDate}\n";
         $msg .= "⏰ Hora: {$formattedTime}\n\n";
         $msg .= "⏳ *Lembrete 1:* A janela do seu jogo abrirá 30 minutos ANTES e fechará 30 minutos DEPOIS deste horário escolhido.\n\n";
-        $msg .= "⏳ *Lembrete 2:* Mesmo que seu oponente não confirme a tempo, Você deve comparecer no seu horário proposto e enviar o */play $matchId* para registrar que você está disponível.\n\n";
+        $msg .= "⏳ *Lembrete 2:* Mesmo que seu oponente não confirme a tempo, Você deve comparecer no seu horário proposto e enviar o */play $matchID* para registrar que você está disponível.\n\n";
 
         // 1. Atualizar schedules.bookingsData
-        $schedules = getJson(FILE_SCHEDULES);
+        $results = getJson(FILE_SCHEDULES);
         $existingIndex = -1;
-        foreach ($schedules as $idx => $s) {
-            if ($s['matchID'] == $matchId) { $existingIndex = $idx; break; }
+        foreach ($results as $idx => $s) {
+            if ($s['matchID'] == $matchID) { $existingIndex = $idx; break; }
         }
 
         $newSchedule = [
-            'matchID' => $matchId,
+            'matchID' => $matchID,
             'bookingDate' => $dbFormattedDate,
             'status' => 'PROPOSTO',
             'proposedByPilotID' => $currentPilot['id'],
@@ -803,18 +803,18 @@ switch ($cmd) {
         ];
 
         if ($existingIndex >= 0) {
-            $newSchedule['id'] = $schedules[$existingIndex]['id'] ?? getNextId($schedules);
-            $schedules[$existingIndex] = $newSchedule;
+            $newSchedule['id'] = $results[$existingIndex]['id'] ?? getNextId($results);
+            $results[$existingIndex] = $newSchedule;
         } else {
-            $newSchedule['id'] = getNextId($schedules);
-            $schedules[] = $newSchedule;
+            $newSchedule['id'] = getNextId($results);
+            $results[] = $newSchedule;
         }
-        saveJson(FILE_SCHEDULES, $schedules);
+        saveJson(FILE_SCHEDULES, $results);
 
         // 2. Atualizar matches.bookingsData
         $allMatches = getJson(FILE_MATCHES);
         foreach ($allMatches as &$m) {
-            if ($m['id'] == $matchId) {
+            if ($m['id'] == $matchID) {
                 $m['status'] = 'PROPOSTO';
                 break;
             }
@@ -827,42 +827,42 @@ switch ($cmd) {
 
         $opponentId = ($p1Id == $currentPilot['id']) ? $p2Id : $p1Id;
         $opponentName = getPilotDisplayNameByNick(getPilotById($opponentId));
-        saveAudit($matchId, $currentPilot['id'], 'PARTIDA_PROPOSTA', "Piloto realizou proposta para $dbFormattedDate. Aguardando confirmação do Oponente $opponentName.");
+        saveAudit($matchID, $currentPilot['id'], 'PARTIDA_PROPOSTA', "Piloto realizou proposta para $dbFormattedDate. Aguardando confirmação do Oponente $opponentName.");
         $responseData['state'] = 'AGUARDANDO_OPONENTE';
 
         respond($msg, $responseData);
 
     case '/proposal_confirm':
         $parts = explode(' ', $function);
-        $matchId = intval($parts[1] ?? 0);
+        $matchID = intval($parts[1] ?? 0);
 
-        if (!$matchId) {
+        if (!$matchID) {
             respond("❌ Falta de parâmetros (ID da partida).");
         }
 
         // 1. Atualizar schedules.bookingsData
-        $schedules = getJson(FILE_SCHEDULES);
+        $results = getJson(FILE_SCHEDULES);
         $existingIndex = -1;
-        foreach ($schedules as $index => $s) {
-            if ($s['matchID'] == $matchId) { $existingIndex = $index; break; }
+        foreach ($results as $index => $s) {
+            if ($s['matchID'] == $matchID) { $existingIndex = $index; break; }
         }
 
         if ($existingIndex >= 0) {
             // Se já existe, atualiza os dados preservando ID original e quem propôs
-            $schedules[$existingIndex]['status'] = 'CONFIRMADO';
-            $schedules[$existingIndex]['updatedAt'] = date('Y-m-d H:i:s');
-            $schedules[$existingIndex]['actionByPilotID'] = $currentPilot['id'];
+            $results[$existingIndex]['status'] = 'CONFIRMADO';
+            $results[$existingIndex]['updatedAt'] = date('Y-m-d H:i:s');
+            $results[$existingIndex]['actionByPilotID'] = $currentPilot['id'];
         } else {
             // Sem fallback de criação, apenas recusa e retorna erro.
             respond("❌ Erro: Não existe nenhuma proposta ativa para ser confirmada.", ['state' => 'ERRO_NENHUMA_PROPOSTA']);
         }
 
-        saveJson(FILE_SCHEDULES, $schedules);
+        saveJson(FILE_SCHEDULES, $results);
 
         // 2. Atualizar matches.bookingsData (Status global da partida)
         $allMatches = getJson(FILE_MATCHES);
         foreach ($allMatches as &$m) {
-            if ($m['id'] == $matchId) {
+            if ($m['id'] == $matchID) {
                 $m['status'] = 'AGENDADO';
                 break;
             }
@@ -870,13 +870,13 @@ switch ($cmd) {
         saveJson(FILE_MATCHES, $allMatches);
 
         // 3. Salvar Auditoria
-        saveAudit($matchId, $currentPilot['id'], 'CONFIRMADO', "Piloto confirmou o agendamento via API.");
+        saveAudit($matchID, $currentPilot['id'], 'CONFIRMADO', "Piloto confirmou o agendamento via API.");
 
         $matches = getJson(FILE_MATCHES);
         $match = null;
         unset($m);
-        foreach ($matches as $m) { if ($m['id'] == $matchId) { $match = $m; break; } }
-        if (!$match) respond("❌ Partida #$matchId não encontrada para confirmação.");
+        foreach ($matches as $m) { if ($m['id'] == $matchID) { $match = $m; break; } }
+        if (!$match) respond("❌ Partida #$matchID não encontrada para confirmação.");
 
         $p1Id = $match['player1ID'] ;
         $p2Id = $match['player2ID'] ;
@@ -890,11 +890,11 @@ switch ($cmd) {
             $nickname = getPilotDisplayNameByNick(getPilotById($p1Id));
         }
 
-        $dtTimestamp = strtotime($schedules[$existingIndex]['bookingDate']);
+        $dtTimestamp = strtotime($results[$existingIndex]['bookingDate']);
         $formattedTime = date('d/m H:i', $dtTimestamp);
 
         $responseData = [
-            'matchID' => $matchId,
+            'matchID' => $matchID,
             'state' => 'CONFIRMADO',
             'nickname' => $nickname,
             'opponentID' => $opponentID,
@@ -903,21 +903,21 @@ switch ($cmd) {
         ];
 
         respond("✅ *Agendamento Confirmado!*\n\nA partida está oficialmente agendada. O seu oponente será notificado.
-        \n\nNo dia do jogo, lembre-se de usar */play {$matchId}*.", $responseData);
+        \n\nNo dia do jogo, lembre-se de usar */play {$matchID}*.", $responseData);
 
     case '/poleposition':
         $parts = explode(' ', $function);
-        $matchId = intval($parts[1]);
+        $matchID = intval($parts[1]);
         $matches = getJson(FILE_MATCHES);
         $match = null;
         foreach ($matches as $m) {
-            if ($m['id'] == $matchId) { $match = $m; break; }
+            if ($m['id'] == $matchID) { $match = $m; break; }
         }
 
         if ($pilotID == 351935525827) {
             $responseData = ['state' => 'ERRO_NAO_PERTENCE'];
-            respond( "❌ Este comando não pode ser utilizado em grupos.\n\n" .
-                "Envie uma mensagem privada para o TopGearTGCBot +351935525827 e execute o comando por lá.", $responseData );
+            respond( "❌ Só consigo processar uma mensagem por vez! \n\nReenvie novamente o comando...\n\n" .
+                "Link do TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.", $responseData );
         }
 
         if (!$match) {
@@ -925,9 +925,9 @@ switch ($cmd) {
             respond("❌ Partida não encontrada. \n\nRevise o número com o */partidas*", $responseData);
         }
 
-        if ($match['status'] == "PARTIDA_FINALIZADA") {
+        if ($match['status'] == "CONCLUIDO") {
             $responseData = ['state' => 'RODADA_FINALIZADA'];
-            respond("🚫 *Atenção:* Infelizmente essa rodada já encerrou\n\nRevise o número da rodada ativa com o */partidas* ).", $responseData);
+            respond("🚫 *Atenção:* Infelizmente essa rodada já encerrou\n\nRevise o número da rodada ativa com o */partidas*", $responseData);
         }
 
         $p1Id = $match['player1ID'] ;
@@ -938,35 +938,190 @@ switch ($cmd) {
             respond("❌ Esta partida não é sua. \n\nRevise o número com o */partidas*", $responseData);
         }
 
-        $rounds = getJson(FILE_ROUNDS_T6);
-        $round = null;
-        foreach ($rounds as $r) {
-            if ($r['name'] == $m['groupName']) { $round = $r; break; }
-        }
-
-        $allTracks = getJson(FILE_ALLTRACKS);
-        $tracksInThisRound = [];
-        $index=0;
-        foreach ($allTracks as $track) {
-            if ($track['id'] == $r['tracks'][$index]) {
-                $tracksInThisRound[$index] = $track;
-                $index++;
+        //De baixo pra cima, pega o último resultado da partida.
+        $results = getJson(FILE_RESULTS_T6);
+        $result = null;
+        for ($i = count($results) - 1; $i >= 0; $i--) {
+            if ($results[$i]['matchID'] == $matchID) {
+                $result = $results[$i]; break;
             }
         }
 
-        $msg = "🏁 *Pole Position - Partida #$matchId*\n\n";
-        $msg .= "🏆 Torneio: {$match['tournament']}\n";
-        $msg .= "👤 Player 1: " . getPilotDisplayNameByNick(getPilotById($p1Id)) . "\n";
-        $msg .= "👤 Player 2: " . getPilotDisplayNameByNick(getPilotById($p2Id)) . "\n";
-        $msg .= "📅 Data Limite: " . date('d/m H:i', strtotime($match['deadline'])) . "\n";
-        $msg .= "📝 Pistas da Rodada:\n";
-        foreach ($tracksInThisRound as $track) {
-            $msg .= "   - " . $track['name'] . "\n";
+        $resultadoAtual = [
+            'id' => $result['id'],
+            'matchID' => $matchID,
+            'roundID' => $result['roundID'],
+            'pilotID' => $result['pilotID'],
+            'totalTime' => $result['totalTime'],
+            'times' => $result['times'],
+            'link' => $result['proof']['url']
+        ];
+
+        if ($match['status'] == 'CONFIRMADO_SEM_VIDEO') {
+            if ($result['pilotID'] == $pilotID) {
+                $responseData = ['state' => 'CONFIRMADO_SEM_VIDEO'] + $resultadoAtual + $match['localTrack'];
+                respond("📝 Você já enviou os seus tempos anteriormente.\n\n*Deseja enviar o link agora ?*
+                \n\nSelecione *Sim, apenas o link* para enviar o link faltante.
+                \nSelecione *Não, desejo reenviar tudo* para enviar melhores tempos.
+                \nSelecione *Não, desejo manter* para mantê-los.", $responseData );
+            }
+        }
+
+        if ($match['status'] == 'CONFIRMADO_PODE_EDITAR') {
+            if ($result['pilotID'] == $pilotID) {
+                $responseData = ['state' => 'CONFIRMADO_PODE_EDITAR'] + $resultadoAtual + $match['localTrack'];
+                respond("📝 Você já enviou os seus tempos anteriormente.\n\n*Deseja enviar melhores tempos agora ?*
+                \nSelecione *Sim, desejo reenviar* para enviar melhores tempos.
+                \nSelecione *Não, desejo manter* para manter o atual.", $responseData);
+            }
+        }
+
+        $msg = "🏁 *Pistas da partida #{$match['id']}*\n\n";
+        foreach ($match['localTrack'] as $track) {
+            $msg .= "🏎️ {$track}\n";
         }
         $msg .= "\nEnvie agora os tempos!";
-        $responseData = ['state' => 'PENDENTE_TEMPOS', 'tracks' => $tracksInThisRound];
+
+        $responseData = ['state' => 'PENDENTE_TEMPOS'] + $match['localTrack'];
 
         respond($msg, $responseData);
+
+    case '/polepositionsendtimes':
+        $parts = explode(' ', $function);
+        $matchID = intval($parts[1]);
+        $matches = getJson(FILE_MATCHES);
+        $match = null;
+        foreach ($matches as $m) {
+            if ($m['id'] == $matchID) { $match = $m; break; }
+        }
+
+        if (!$match) {
+            $responseData = ['state' => 'ERRO_NAO_ENCONTRADO'];
+            respond("❌ Partida não encontrada. \n\nRevise o número com o */partidas*", $responseData);
+        }
+
+
+        if ($match['status'] == "CONCLUIDO") {
+            $responseData = ['state' => 'RODADA_FINALIZADA'];
+            respond("🚫 *Atenção:* Infelizmente essa rodada já encerrou\n\nRevise o número da rodada ativa com o */partidas*", $responseData);
+        }
+
+        $message = $input['message'];
+        $timesRecebidos = $message['times'] ;
+        $videoLink = $message['videoLink'] ;
+        $pilotID = $message['from']['pilotID'] ;
+        $roundID = $match['groupName'];
+        $results = getJson(FILE_RESULTS_T6);
+
+        if ($timesRecebidos == null) {
+
+            for ($i = count($results) - 1; $i >= 0; $i--) {
+                if ((int)$results[$i]['matchID'] === $matchID && (int)$results[$i]['pilotID'] === $pilotID) {
+                    $results[$i]['proof']['url'] = trim($videoLink);
+                    break;
+                }
+            }
+            saveJson(FILE_RESULTS_T6, $results);
+
+            $allMatches = getJson(FILE_MATCHES);
+            foreach ($allMatches as &$m) {
+                if ((int)$m['id'] === $matchID) {
+                    $m['status'] = 'CONFIRMADO_PODE_EDITAR';
+                    break;
+                }
+            }
+            unset($m);
+            saveJson(FILE_MATCHES, $allMatches);
+            $responseData = ['state' => 'CONFIRMADO_PODE_EDITAR'];
+            respond("✅ Sucesso:\nLink da sua partida atualizado com sucesso.", $responseData);
+        }
+
+        $times = [];
+        $totalTime = 0;
+
+        foreach ($timesRecebidos as $item) {
+            $pista = trim($item['pista'] );
+            $tempo = trim($item['tempo'] );
+
+            if (!preg_match('/^(\d+):([0-5]\d):(\d{3})$/', $tempo, $tempoMatch)) {
+                respond( "❌ Erro: o tempo {$tempo} possui formato inválido.", ['state' => 'ERRO_DADOS'] );
+            }
+
+            $minutos = intval($tempoMatch[1]);
+            $segundos = intval($tempoMatch[2]);
+            $milissegundos = intval($tempoMatch[3]);
+
+            $tempoMs =
+                ($minutos * 60 * 1000) +
+                ($segundos * 1000) +
+                $milissegundos;
+
+            if (!preg_match('/^(\d{2})\s/', $pista, $pistaMatch)) {
+                respond( "❌ Erro: não foi possível identificar o ID da pista: {$pista}", ['state' => 'ERRO_DADOS'] );
+            }
+
+            $trackID = intval($pistaMatch[1]);
+
+            $times[(string)$trackID] = $tempoMs;
+            $totalTime += $tempoMs;
+        }
+
+        $novoId = 1;
+        if (!empty($results)) {
+            $ids = array_column($results, 'id');
+            $novoId = max($ids) + 1;
+        }
+
+        $agora = date('c');
+
+        $novoResultado = [
+            'id' => $novoId,
+            'matchID' => $matchID,
+            'roundID' => $roundID,
+            'pilotID' => $pilotID,
+            'totalTime' => $totalTime,
+            'times' => $times,
+            'proof' => [
+                'url' => $videoLink
+            ],
+            'audit' => [
+                'submittedAt' => $agora,
+                'published' => false,
+                'publishedAt' => null,
+                'approvedBy' => null
+            ]
+        ];
+
+        // Adiciona SEM alterar resultados anteriores
+        $results[] = $novoResultado;
+        saveJson(FILE_RESULTS_T6, $results);
+
+        // 2. Atualizar matches
+        $responseData = ['state' => 'ERRO_DADOS'];
+        $allMatches = getJson(FILE_MATCHES);
+        foreach ($allMatches as &$m) {
+            if ($m['id'] == $matchID) {
+                if ($videoLink == "N/A") {
+                    $responseData = ['state' => 'CONFIRMADO_SEM_VIDEO'] + $match['localTrack'];
+                    $m['status'] = 'CONFIRMADO_SEM_VIDEO';
+                } else {
+                    $responseData = ['state' => 'CONFIRMADO_PODE_EDITAR'] + $match['localTrack'];
+                    $m['status'] = 'CONFIRMADO_PODE_EDITAR';
+                }
+                break;
+            }
+        }
+        saveJson(FILE_MATCHES, $allMatches);
+
+        $msg = "✅ *Tempos enviados com sucesso!*\n";
+        $msg .= "Aguarde a validação do Admin.";
+        $msg .= "\n\nPara ver sua classificação nessa rodada, use o comando:";
+        $msg .= "\n*/poleresults $matchID*";
+        $msg .= "\n\nPara ver sua classificação geral no torneio, use o comando:";
+        $msg .= "\n*/poleResults*";
+        $msg .= "\n\n👏🏽 Obrigado por participar! 🏁 ";
+
+        respond( $msg, $responseData );
 
     default:
         respond("❓ Comando não reconhecido ou não suportado via API.");

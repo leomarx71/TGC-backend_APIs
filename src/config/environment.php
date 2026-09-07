@@ -138,13 +138,14 @@ if (!defined('FILE_LOG_BOT')) {
 // DEFINIR CONSTANTES DOS TORNEIOS
 // ============================================================
 
-if (!defined('FILE_ROUNDS_T6')) {
-    define('FILE_ROUNDS_T6', TOURNAMENTS_DATA_DIR . '/T6_TGC_Pole_Position/rounds.json');
-}
-
 if (!defined('FILE_ALLTRACKS')) {
     define('FILE_ALLTRACKS', GENERAL_DATA_DIR . '/allTracks.json');
 }
+
+if (!defined('FILE_RESULTS_T6')) {
+    define('FILE_RESULTS_T6', TOURNAMENTS_DATA_DIR . '/T6_TGC_Pole_Position/results.json');
+}
+
 
 // ============================================================
 // CONFIGURAR TIMEZONE
