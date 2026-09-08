@@ -1,15 +1,14 @@
 {
   "pointsByPosition": {
-    "position1": 20,
-    "position2": 15,
-    "position3": 12,
-    "position4": 10,
-    "position5": 8,
-    "position6": 6,
-    "position7": 5,
-    "position8": 4,
-    "position9": 3,
-    "position10": 2,
-    "defaultPoints": 1
+    "1": 20,
+    "2": 15,
+    "3": 12,
+    "4": 10,
+    "5": 8,
+    "6": 6,
+    "7": 5,
+    "8": 4,
+    "9": 3,
+    "10": 2
   }
 }

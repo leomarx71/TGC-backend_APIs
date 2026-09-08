@@ -426,13 +426,11 @@ if (isset($_POST['edit_match_id'])) {
 // --- AÇÃO: CLONAR PARTIDA ---
 if (isset($_POST['clone_match_id'])) {
     $sourceId = intval($_POST['clone_match_id']);
-    $clonePhase = $_POST['clone_phase'] ?? '';
-    $cloneGroupNum = $_POST['clone_group_num'] ?? '';
     $cloneP1 = intval($_POST['clone_p1'] ?? 0);
     $cloneP2 = intval($_POST['clone_p2'] ?? 0);
     $cloneDate = $_POST['clone_deadline'] ?? '';
 
-    if ($sourceId && $clonePhase && $cloneP1 && $cloneP2 && $cloneDate) {
+    if ($sourceId && $cloneP1 && $cloneP2 && $cloneDate) {
         $matches = getJson(FILE_MATCHES);
         $sourceMatch = null;
 
@@ -447,21 +445,16 @@ if (isset($_POST['clone_match_id'])) {
 
         if ($sourceMatch) {
             $newDeadline = $cloneDate . " 23:59:59";
-            $resolvedClonePhaseId = normalizePhaseId($clonePhase, $phases);
-            $newGroupName = ($resolvedClonePhaseId === "F1") ? "Grupo $cloneGroupNum" : (($resolvedClonePhaseId === "F7") ? "Rodada $cloneGroupNum" : getPhaseNameById($resolvedClonePhaseId, $phases));
-             
             // Criar nova partida baseada na origem
-            $resolvedClonePhaseName = getPhaseNameById($resolvedClonePhaseId, $phases);
-            $resolvedCloneTournamentId = normalizeTournamentId($sourceMatch['tournamentId'] ?? ($sourceMatch['tournament'] ?? ''), $tournaments);
             $newMatch = [
                 'id' => getNextId($matches),
                 'player1ID' => $cloneP1,
                 'player2ID' => $cloneP2,
-                'groupName' => $newGroupName,
-                'tournamentId' => $resolvedCloneTournamentId,
-                'phaseId' => $resolvedClonePhaseId,
-                'tournament' => getTournamentNameById($resolvedCloneTournamentId, $tournaments),
-                'phase' => $resolvedClonePhaseName,
+                'groupName' => $sourceMatch['groupName'],
+                'tournamentId' => $sourceMatch['tournamentId'],
+                'phaseId' => $sourceMatch['phaseId'],
+                'tournament' => $sourceMatch['tournament'],
+                'phase' => $sourceMatch['phase'],
                 'localTrack' => is_array($sourceMatch['localTrack'] ?? null) ? $sourceMatch['localTrack'] : [],
                 'deadline' => $newDeadline,
                 'status' => 'PENDENTE',
@@ -1028,7 +1021,7 @@ if (is_array($pilots)) {
         function openCloneModal(id, phase, groupName, p1, p2, deadline) {
             document.getElementById('clone_match_id').value = id;
             document.getElementById('clone_match_title').innerText = "Clonar Partida (Origem: #" + id + ")";
-              
+
             const phaseSelect = document.getElementById('clone_phase');
             phaseSelect.value = phase;
             toggleCloneGroupSelect(phase);
@@ -1726,6 +1719,7 @@ if (is_array($pilots)) {
                 <input type="hidden" name="clone_match_id" id="clone_match_id">
                 
                 <!-- Fase e Grupo/Rodada-->
+
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Fase</label>
                     <label for="clone_phase"></label>
@@ -1733,6 +1727,7 @@ if (is_array($pilots)) {
                         <?php foreach ($fases as $f): ?><option value="<?= htmlspecialchars((string)($f['id'] ?? '')) ?>"><?= htmlspecialchars((string)($f['name'] ?? '')) ?></option><?php endforeach; ?>
                     </select>
                 </div>
+
                 <div id="clone_group_container" class="hidden">
                     <label class="block text-sm font-bold text-gray-700 mb-1">Número do Grupo/Rodada</label>
                     <label for="clone_group_num"></label>
