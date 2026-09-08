@@ -240,7 +240,7 @@ switch ($cmd) {
         $msg .= "*2. INICIAR AGENDAMENTO:* /agendar ID\n";
         $msg .= "*3. NO DIA DO JOGO:* /play ID\n";
         $msg .= "*4. ENVIAR TEMPOS POLE POSITION:* /polePosition ID\n";
-        $msg .= "*5. RESULTADOS POLE POSITION:* /poleResults ou /poleResults ID\n\n";
+        $msg .= "*5. RESULTADOS POLE POSITION:* /poleRounds ID ou /poleFinalStandings\n\n";
         $msg .= "*Comandos para Admins*\n\n";
         $msg .= "*6. Gerenciar o resultado da partida:* /resultado ID\n";
         $msg .= "*7. Ver Auditoria da partida:* /audit ID\n";
@@ -252,7 +252,7 @@ switch ($cmd) {
         $msg .= "*2. INICIAR GESTIÓN:* /agendar ID\n";
         $msg .= "*3. EN EL DÍA DEL JUEGO:* /play ID\n";
         $msg .= "*4. ENVIAR TIEMPOS POLE POSITION:* /polePosition ID\n";
-        $msg .= "*5. RESULTADOS POLE POSITION:* /poleResults o /poleResults ID\n\n";
+        $msg .= "*5. RESULTADOS POLE POSITION:* /poleRounds ID o /poleFinalStandings\n\n";
         $msg .= "*Comandos para Admins*\n\n";
         $msg .= "*6. Gestión el resultado del partido:* /resultado ID\n";
         $msg .= "*7. Ver auditoría del juego:* /audit ID\n";
@@ -1137,20 +1137,20 @@ switch ($cmd) {
         $msg = "✅ *Tempos enviados com sucesso!*\n";
         $msg .= "Aguarde a validação do Admin.";
         $msg .= "\n\nPara ver sua classificação nessa rodada, use o comando:";
-        $msg .= "\n*/poleresults $matchID*";
+        $msg .= "\n*/poleRounds $matchID*";
         $msg .= "\n\nPara ver sua classificação geral no torneio, use o comando:";
-        $msg .= "\n*/poleResults*";
+        $msg .= "\n*/poleFinalStandings*";
         $msg .= "\n\n👏🏽 Obrigado por participar! 🏁 ";
 
         respond( $msg, $responseData );
 
     case '/polerounds':
         $parts = explode(' ', $function);
-        // O parâmetro enviado agora é estritamente o número da rodada (ex: /poleresults 2)
+        // O parâmetro enviado agora é estritamente o número da rodada (ex: /poleRounds 2)
         $roundNumber = intval($parts[1] ?? 0);
 
         if ($roundNumber <= 0) {
-            respond("❌ Por favor, informe o número da rodada.\nExemplo: */poleresults 2*", ['state' => 'ERRO_PARAMETRO_INVALIDO']);
+            respond("❌ Por favor, informe o número da rodada.\nExemplo: */poleRounds 2*", ['state' => 'ERRO_PARAMETRO_INVALIDO']);
         }
 
         $targetRound = "Rodada " . $roundNumber;
@@ -1299,7 +1299,7 @@ switch ($cmd) {
         }
 
         $msg = "\n\nPara ver a sua classificação geral no torneio, use o comando:";
-        $msg .= "\n*/poleResults*";
+        $msg .= "\n*/poleFinalStandings*";
 
         // Preparação para atualizar o objeto no db de forma limpa (sem strings extras de display)
         $roundExists = false;
@@ -1331,6 +1331,90 @@ switch ($cmd) {
             'results' => $CurrentsRoundResults
         ]);
 
+    case '/polefinalstandings':
+        // 1. Carrega apenas o standings.json, tornando independente do matches.json
+        $standings = getJson(FILE_STANDINGS_T6);
+
+        if (empty($standings)) {
+            respond("❌ Nenhuma rodada foi registrada até o momento no torneio.", ['state' => 'ERRO_STANDINGS_VAZIO']);
+        }
+
+        $aggregated = [];
+
+        // 2. Itera sobre todas as rodadas salvas
+        foreach ($standings as $round) {
+            $results = $round['results'] ?? [];
+
+            foreach ($results as $r) {
+                // Compatibilidade: tenta usar pilotNickName (novo padrão) ou resolve via pilotID
+                $pilotIdentifier = $r['pilotNickName'] ?? '';
+
+                if (empty($pilotIdentifier) && isset($r['pilotID'])) {
+                    $pilots = getJson(FILE_PILOTS);
+                    $pInfo = getPilotById($r['pilotID'], $pilots);
+                    $pilotIdentifier = getPilotDisplayNameByNick($pInfo);
+                }
+
+                if (empty($pilotIdentifier)) {
+                    continue; // Pula se não conseguir identificar o piloto
+                }
+
+                // Inicializa o piloto no array de consolidação se não existir
+                if (!isset($aggregated[$pilotIdentifier])) {
+                    $aggregated[$pilotIdentifier] = [
+                        'rank' => 0,
+                        'pilotNickName' => $pilotIdentifier,
+                        'totalPoints' => 0,
+                        'totalTime' => 0,
+                        'totalTimeFormatted' => 0,
+                        'validRounds' => 0
+                    ];
+                }
+
+                // 3. Soma os pontos e os tempos totais
+                $aggregated[$pilotIdentifier]['totalPoints'] += (int)($r['points'] ?? 0);
+
+                $time = (int)($r['totalTime'] ?? 0);
+                if ($time > 0) { // Soma apenas tempos válidos (Ignora DNFs com 0 nas rodadas)
+                    $aggregated[$pilotIdentifier]['totalTime'] += $time;
+                    $aggregated[$pilotIdentifier]['validRounds']++; // Conta rodadas em que ele pontuou tempo
+                }
+            }
+        }
+
+        // 4. Converte o dicionário associativo para um array indexado
+        $finalStandings = array_values($aggregated);
+
+        // 5. Ordenação do Campeonato:
+        // Primeiro: Maior Pontuação.
+        // Desempate: Menor Tempo Total (DNFs vão para o fim).
+        usort($finalStandings, function($a, $b) {
+            if ($a['totalPoints'] !== $b['totalPoints']) {
+                return $b['totalPoints'] <=> $a['totalPoints']; // Maior ponto vence (DESC)
+            }
+
+            // Empate: Verifica o tempo. Quem tem 0 (DNF) recebe o pior tempo possível (PHP_INT_MAX)
+            $timeA = $a['totalTime'] > 0 ? $a['totalTime'] : PHP_INT_MAX;
+            $timeB = $b['totalTime'] > 0 ? $b['totalTime'] : PHP_INT_MAX;
+
+            return $timeA <=> $timeB; // Menor tempo vence (ASC)
+        });
+
+        // 6. Preparação final e injeção do tempo formatado
+        $rank = 1;
+        foreach ($finalStandings as &$fs) {
+            $fs['rank'] = $rank;
+            $fs['totalTimeFormatted'] = $fs['totalTime'] > 0 ? formatMsToTime($fs['totalTime']) : "0:00:000";
+            $rank++;
+        }
+
+        $msg = " \n🏁 *Parabéns você chegou na linha de chegada!* 🏁👏🏽 *Obrigado por participar!* 👏🏽";
+
+        respond($msg, [
+            'state' => 'CLASSIFICACAO_GERAL_FINAL',
+            'date' => date('c'),
+            'results' => $finalStandings
+        ]);
 
     default:
         respond("❓ Comando não reconhecido ou não suportado via API.");
