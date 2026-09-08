@@ -1,32 +1,62 @@
 [
   {
-    "rank": 1,
-    "pilotID": 10,
-    "roundID": 1,
-    "resultID": 1,
-    "points": 20,
-    "published": true,
-    "publishedAt": "2025-08-15T22:30:00-03:00",
-    "approvedBy": 5511993499981
+    "id": 1,
+    "roundID": "Rodada 2",
+    "results": [
+      {
+        "rank": 1,
+        "roundID": "Rodada 2",
+        "resultID": 2,
+        "totalTime": 881120,
+        "totalTimeFormatted": "14:41:120",
+        "points": 20
+      },
+      {
+        "rank": 2,
+        "roundID": "Rodada 2",
+        "resultID": 3,
+        "totalTime": 881130,
+        "totalTimeFormatted": "14:41:130",
+        "points": 15
+      },
+      {
+        "rank": 3,
+        "roundID": "Rodada 2",
+        "resultID": 1,
+        "totalTime": 881150,
+        "totalTimeFormatted": "14:41:150",
+        "points": 12
+      },
+      {
+        "rank": 4,
+        "roundID": "Rodada 2",
+        "resultID": 4,
+        "totalTime": 881160,
+        "totalTimeFormatted": "14:41:160",
+        "points": 10
+      },
+      {
+        "rank": 0,
+        "roundID": "Rodada 2",
+        "resultID": null,
+        "totalTime": 0,
+        "totalTimeFormatted": "0:00:000",
+        "points": 0
+      }
+    ]
   },
   {
-    "rank": 2,
-    "pilotID": 4,
-    "roundID": 1,
-    "resultID": 2,
-    "points": 15,
-    "published": true,
-    "publishedAt": "2025-08-15T22:30:00-03:00",
-    "approvedBy": 5511993499981
-  },
-  {
-    "rank": 1,
-    "pilotID": 3,
-    "roundID": 2,
-    "resultID": 3,
-    "points": 20,
-    "approved": true,
-    "approvedAt": "2025-08-15T22:30:00-03:00",
-    "approvedBy": 5511993499981
+    "id": 2,
+    "roundID": "Rodada 1",
+    "results": [
+      {
+        "rank": 1,
+        "roundID": "Rodada 1",
+        "resultID": 1,
+        "totalTime": 881150,
+        "totalTimeFormatted": "14:41:150",
+        "points": 20
+      }
+    ]
   }
 ]

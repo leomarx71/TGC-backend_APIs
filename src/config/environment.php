@@ -146,6 +146,14 @@ if (!defined('FILE_RESULTS_T6')) {
     define('FILE_RESULTS_T6', TOURNAMENTS_DATA_DIR . '/T6_TGC_Pole_Position/results.json');
 }
 
+if (!defined('FILE_SCORING_T6')) {
+    define('FILE_SCORING_T6', TOURNAMENTS_DATA_DIR . '/T6_TGC_Pole_Position/scoring.json');
+}
+
+if (!defined('FILE_STANDINGS_T6')) {
+    define('FILE_STANDINGS_T6', TOURNAMENTS_DATA_DIR . '/T6_TGC_Pole_Position/standings.json');
+}
+
 
 // ============================================================
 // CONFIGURAR TIMEZONE

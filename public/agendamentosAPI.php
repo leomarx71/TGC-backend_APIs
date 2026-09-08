@@ -151,12 +151,21 @@ function saveAudit($matchId, $pilotId, $action, $details = '') {
     saveJson(FILE_AUDIT, $audit);
 }
 
-// Verifica se a partida é contra o computador (ex: Ritchie / Pole Position)
 function isComputerMatch($match) {
     // Retorna true se um dos IDs for <= 0 (geralmente bots) ou se o torneio tiver 'Pole' no nome
     return ($match['player1ID'] <= 0 || $match['player2ID'] <= 0 || stripos($match['tournament'], 'Pole') !== false);
 }
 
+function formatMsToTime($ms) {
+        if ($ms <= 0) return "0:00:000"; // Fallback para quem não tem tempo válido
+
+        $minutes = floor($ms / 60000);
+        $seconds = floor(($ms % 60000) / 1000);
+        $milliseconds = $ms % 1000;
+
+        // %d (minutos sem zero extra), %02d (segundos com 2 casas), %03d (ms com 3 casas)
+        return sprintf("%d:%02d:%03d", $minutes, $seconds, $milliseconds);
+}
 // =================================================================================
 // 3. PROCESSAMENTO DO INPUT
 // =================================================================================
@@ -227,22 +236,26 @@ switch ($cmd) {
 
     case '/ajuda':
         $msg = "📚 *COMO AGENDAR SUAS PARTIDAS*\n\n";
-        $msg .= "*1. VER SUAS PARTIDAS:* '/partidas'" . "\n";
+        $msg .= "*1. VER SUAS PARTIDAS:* '/partidas'\n";
         $msg .= "*2. INICIAR AGENDAMENTO:* /agendar ID\n";
-        $msg .= "*3. NO DIA DO JOGO:* /play ID\n\n";
+        $msg .= "*3. NO DIA DO JOGO:* /play ID\n";
+        $msg .= "*4. ENVIAR TEMPOS POLE POSITION:* /polePosition ID\n";
+        $msg .= "*5. RESULTADOS POLE POSITION:* /poleResults ou /poleResults ID\n\n";
         $msg .= "*Comandos para Admins*\n\n";
-        $msg .= "*4. Gerenciar o resultado da partida:* /resultado ID\n";
-        $msg .= "*5. Ver Auditoria da partida:* /audit ID\n";
+        $msg .= "*6. Gerenciar o resultado da partida:* /resultado ID\n";
+        $msg .= "*7. Ver Auditoria da partida:* /audit ID\n";
         respond($msg);
 
     case '/ayuda':
         $msg = "📚 *CÓMO AGENDAR TUS PARTIDOS*\n\n";
-        $msg .= "*1. VER SUS PARTIDOS:* " . "'/partidas'" . "\n";
+        $msg .= "*1. VER SUS PARTIDOS:* '/partidas'\n";
         $msg .= "*2. INICIAR GESTIÓN:* /agendar ID\n";
-        $msg .= "*3. EN EL DÍA DEL JUEGO:* /play ID";
+        $msg .= "*3. EN EL DÍA DEL JUEGO:* /play ID\n";
+        $msg .= "*4. ENVIAR TIEMPOS POLE POSITION:* /polePosition ID\n";
+        $msg .= "*5. RESULTADOS POLE POSITION:* /poleResults o /poleResults ID\n\n";
         $msg .= "*Comandos para Admins*\n\n";
-        $msg .= "*4. Gestión el resultado del partido:* /resultado ID\n";
-        $msg .= "*5. Ver auditoría del juego:* /audit ID\n";
+        $msg .= "*6. Gestión el resultado del partido:* /resultado ID\n";
+        $msg .= "*7. Ver auditoría del juego:* /audit ID\n";
         respond($msg);
 
     case '/inscrever':
@@ -310,10 +323,10 @@ switch ($cmd) {
             );
         }
 
-        $myMatches = array_filter($matches, function($m) use ($currentPilot) {
-            return ($m['player1ID'] == $currentPilot['id'] || $m['player2ID'] == $currentPilot['id'])
-                && in_array($m['status'], ['PENDENTE', 'AGENDADO', 'PROPOSTO', 'CONFIRMADO']);
-        });
+        $myMatches = array_filter($matches, fn($m) =>
+            ($m['player1ID'] == $currentPilot['id'] || $m['player2ID'] == $currentPilot['id'])
+            && in_array($m['status'], ['PENDENTE', 'AGENDADO', 'PROPOSTO', 'CONFIRMADO', 'CONFIRMADO_PODE_EDITAR', 'CONFIRMADO_SEM_VIDEO'])
+        );
 
         if (empty($myMatches)) {
             respond("Sem partidas pendentes.", []);
@@ -327,12 +340,24 @@ switch ($cmd) {
             $p2 = getPilotById($m['player2ID'], $pilots);
             $p1Name = getPilotDisplayNameByNick($p1);
             $p2Name = getPilotDisplayNameByNick($p2);
+
+            // Verifica se é partida de pole position
+            $isPole = ($m['player1ID'] == 999 || $m['player2ID'] == 999);
             $sched = getMatchSchedule($m['id']);
-            $status = $sched ? "{$sched['status']}" : "⚠️ Aguardando Agendamento";
+
+            // PHP 8+ Match: Avalia as condições de cima para baixo
+            $status = match (true) {
+                $isPole && $m['status'] === 'PENDENTE'               => '⚠️ Aguardando envio de tempos',
+                $isPole && $m['status'] === 'CONFIRMADO_SEM_VIDEO'   => '⚠️ Aguardando Video',
+                $isPole && $m['status'] === 'CONFIRMADO_PODE_EDITAR' => '✅ Tempos OK',
+                $isPole                                              => $m['status'], // Caso a pole position tenha outro status
+                $sched !== null                                      => $sched['status'], // Partida normal com agendamento
+                default                                              => '⚠️ Aguardando Agendamento', // Partida normal sem agendamento
+            };
+
             $prazo = date('d/m \à\s H:i', strtotime($m['deadline']));
             $local = formatLocal($m['localTrack'] ?? null);
-            $titulo = "{$m['tournament']} - {$m['phase']}";
-            if ($m['groupName'] !== $m['phase'] && $m['phase'] == 'Fase de Grupos') $titulo .= " - {$m['groupName']}";
+            $titulo = "{$m['tournament']} - {$m['phase']}" . (($m['groupName'] !== $m['phase'] && $m['phase'] === 'Fase de Grupos') ? " - {$m['groupName']}" : "");
 
             $msg .= "🆔 *Partida #{$m['id']}*\n👤 {$p1Name} vs {$p2Name} 👤\n🏆 {$titulo}\n⏳ Prazo Final: {$prazo}\n📌 Status: {$status}\n🛣 {$local}\n\n";
             $msg .= "Use */agendar ID* ou */play ID* para gerenciar.\n\n";
@@ -952,27 +977,24 @@ switch ($cmd) {
             'matchID' => $matchID,
             'roundID' => $result['roundID'],
             'pilotID' => $result['pilotID'],
-            'totalTime' => $result['totalTime'],
-            'times' => $result['times'],
+            'totalTime' => formatMsToTime((int)$result['totalTime']),
+            'times' => is_array($result['times']) ? array_map(function($time) {
+                return formatMsToTime((int)$time);
+            }, $result['times']) : [],
             'link' => $result['proof']['url']
         ];
 
         if ($match['status'] == 'CONFIRMADO_SEM_VIDEO') {
             if ($result['pilotID'] == $pilotID) {
                 $responseData = ['state' => 'CONFIRMADO_SEM_VIDEO'] + $resultadoAtual + $match['localTrack'];
-                respond("📝 Você já enviou os seus tempos anteriormente.\n\n*Deseja enviar o link agora ?*
-                \n\nSelecione *Sim, apenas o link* para enviar o link faltante.
-                \nSelecione *Não, desejo reenviar tudo* para enviar melhores tempos.
-                \nSelecione *Não, desejo manter* para mantê-los.", $responseData );
+                respond("📝 Você já enviou os seus tempos anteriormente.\n\n*Deseja enviar o link agora ?*", $responseData );
             }
         }
 
         if ($match['status'] == 'CONFIRMADO_PODE_EDITAR') {
             if ($result['pilotID'] == $pilotID) {
                 $responseData = ['state' => 'CONFIRMADO_PODE_EDITAR'] + $resultadoAtual + $match['localTrack'];
-                respond("📝 Você já enviou os seus tempos anteriormente.\n\n*Deseja enviar melhores tempos agora ?*
-                \nSelecione *Sim, desejo reenviar* para enviar melhores tempos.
-                \nSelecione *Não, desejo manter* para manter o atual.", $responseData);
+                respond("📝 Você já enviou os seus tempos anteriormente.\n\n*Deseja enviar melhores tempos agora ?*", $responseData);
             }
         }
 
@@ -1000,7 +1022,6 @@ switch ($cmd) {
             respond("❌ Partida não encontrada. \n\nRevise o número com o */partidas*", $responseData);
         }
 
-
         if ($match['status'] == "CONCLUIDO") {
             $responseData = ['state' => 'RODADA_FINALIZADA'];
             respond("🚫 *Atenção:* Infelizmente essa rodada já encerrou\n\nRevise o número da rodada ativa com o */partidas*", $responseData);
@@ -1013,8 +1034,8 @@ switch ($cmd) {
         $roundID = $match['groupName'];
         $results = getJson(FILE_RESULTS_T6);
 
+        //Atualização apenas do link de vídeo, sem alterar tempos anteriores
         if ($timesRecebidos == null) {
-
             for ($i = count($results) - 1; $i >= 0; $i--) {
                 if ((int)$results[$i]['matchID'] === $matchID && (int)$results[$i]['pilotID'] === $pilotID) {
                     $results[$i]['proof']['url'] = trim($videoLink);
@@ -1092,11 +1113,11 @@ switch ($cmd) {
             ]
         ];
 
-        // Adiciona SEM alterar resultados anteriores
+        // Adiciona novo resultado sem alterar resultados anteriores
         $results[] = $novoResultado;
         saveJson(FILE_RESULTS_T6, $results);
 
-        // 2. Atualizar matches
+        // Atualizar matches
         $responseData = ['state' => 'ERRO_DADOS'];
         $allMatches = getJson(FILE_MATCHES);
         foreach ($allMatches as &$m) {
@@ -1122,6 +1143,194 @@ switch ($cmd) {
         $msg .= "\n\n👏🏽 Obrigado por participar! 🏁 ";
 
         respond( $msg, $responseData );
+
+    case '/polerounds':
+        $parts = explode(' ', $function);
+        // O parâmetro enviado agora é estritamente o número da rodada (ex: /poleresults 2)
+        $roundNumber = intval($parts[1] ?? 0);
+
+        if ($roundNumber <= 0) {
+            respond("❌ Por favor, informe o número da rodada.\nExemplo: */poleresults 2*", ['state' => 'ERRO_PARAMETRO_INVALIDO']);
+        }
+
+        $targetRound = "Rodada " . $roundNumber;
+
+        $matches = getJson(FILE_MATCHES);
+        $pilots = getJson(FILE_PILOTS);
+
+        $roundMatches = [];
+        $concludedCount = 0;
+
+        foreach ($matches as $m) {
+            if (($m['tournamentId'] ?? '') === 'T6' && trim($m['groupName'] ?? '') === $targetRound) {
+                $roundMatches[] = $m;
+                if (($m['status'] ?? '') === 'CONCLUIDO') {
+                    $concludedCount++;
+                }
+            }
+        }
+
+        $totalRoundMatches = count($roundMatches);
+
+        if ($totalRoundMatches === 0) {
+            respond("❌ Não há partidas encontrada para a {$targetRound}.", ['state' => 'ERRO_NAO_ENCONTRADO']);
+        }
+
+        $isAdm = isAdmin($pilotID);
+
+        // Regra de Trava: Algumas concluídas, mas não todas
+        if ($concludedCount > 0 && $concludedCount < $totalRoundMatches) {
+            $msg = "❌ *Status Inconsistente*\n\nAlgumas partidas desta rodada ({$concludedCount}/{$totalRoundMatches}) constam como CONCLUÍDO e outras não.\n\nPor favor, contate a Administração para fazer uma revisão antes de ver os resultados.";
+            respond($msg, ['state' => 'ERRO_STATUS_INCONSISTENTE']);
+        }
+
+        $standings = getJson(FILE_STANDINGS_T6);
+
+        // Regra de Trava Final: Todas concluídas e usuário normal -> Retorna o que já tá salvo no standings sem reordenar
+        if ($concludedCount === $totalRoundMatches && !$isAdm) {
+            $existingRound = null;
+            foreach ($standings as $s) {
+                if (($s['roundID'] ?? '') === $targetRound) {
+                    $existingRound = $s;
+                    break;
+                }
+            }
+
+            if ($existingRound) {
+                $msg = "🏎️ *Classificação Final - {$targetRound}* 🏁\n\n";
+                foreach ($existingRound['results'] as $p) {
+                    // Resgatar o nome do piloto para exibir na mensagem (pois é removido no JSON final do standings)
+                    $pInfo = getPilotById($p['pilotID'], $pilots);
+                    $pName = getPilotDisplayNameByNick($pInfo);
+
+                    $pos = $p['rank'] > 0 ? "{$p['rank']}º" : "DNF";
+                    $timeFmt = $p['totalTime'] > 0 ? formatMsToTime($p['totalTime']) : "--:--:---";
+                    $pts = $p['points'] > 0 ? "(+{$p['points']} pts)" : "";
+
+                    $msg .= "{$pos} - {$pName} - {$timeFmt} {$pts}\n";
+                }
+                $msg .= "\nEssa rodada já foi encerrada e os resultados finais são:";
+
+                respond($msg, [
+                    'state' => 'CLASSIFICACAO_RODADA_FINALIZADA',
+                    'date' => date('c'),
+                    'results' => $existingRound['results']
+                ]);
+            } else {
+                respond("❌ A rodada consta como concluída, mas a classificação final não foi encontrada no sistema.", ['state' => 'ERRO_NAO_ENCONTRADO']);
+            }
+        }
+
+        $allResults = getJson(FILE_RESULTS_T6);
+        $scoringData = getJson(FILE_SCORING_T6);
+        $pointsMap = $scoringData['pointsByPosition'] ?? [];
+
+        $roundPilots = [];
+        foreach ($roundMatches as $m) {
+            $mID = (int)$m['id'];
+
+            // Localiza quem é o oponente humano (Diferente do Ritchie id 999)
+            $p1Id = (int)$m['player1ID'];
+            $p2Id = (int)$m['player2ID'];
+            $humanPilotId = ($p1Id === 999) ? $p2Id : $p1Id;
+            $humanPilot = getPilotById($humanPilotId, $pilots);
+
+            $latestResultForMatch = null;
+            foreach ($allResults as $r) {
+                if ((int)$r['matchID'] === $mID) {
+                    // Se houver mais de 1 reenvio, priorizamos o de maior ID (mais recente)
+                    if (!$latestResultForMatch || (int)$r['id'] > (int)$latestResultForMatch['id']) {
+                        $latestResultForMatch = $r;
+                    }
+                }
+            }
+
+            $roundPilots[] = [
+                'rank' => 0,
+                'pilotNickName' => getPilotDisplayNameByNick($humanPilot),
+                'roundID' => $targetRound,
+                'resultID' => $latestResultForMatch ? $latestResultForMatch['id'] : null,
+                'totalTime' => $latestResultForMatch ? (int)$latestResultForMatch['totalTime'] : 0,
+                'totalTimeFormatted' => $latestResultForMatch ? formatMsToTime((int)$latestResultForMatch['totalTime']) : "0:00:000",
+                'points' => 0
+            ];
+        }
+
+        // Separa quem mandou tempo e quem ainda não enviou
+        $finishedPilots = array_filter($roundPilots, fn($p) => $p['totalTime'] > 0);
+        $dnfPilots = array_filter($roundPilots, fn($p) => $p['totalTime'] == 0);
+
+        usort($finishedPilots, function($a, $b) {
+            return $a['totalTime'] <=> $b['totalTime'];
+        });
+
+        $CurrentsRoundResults = [];
+        $currentRank = 1;
+        $actualPosition = 1;
+        $previousTime = null;
+
+        foreach ($finishedPilots as $p) {
+            if ($previousTime !== null) {
+                if ($p['totalTime'] == $previousTime) {
+                    // Empate: Mantém o $currentRank igual ao do piloto anterior
+                } else {
+                    $currentRank = $actualPosition; // Avança para a posição atual, "pulando" ranks de empates
+                }
+            }
+            $p['rank'] = $currentRank;
+
+            if (isset($pointsMap[(string)$currentRank])) {
+                $p['points'] = $pointsMap[(string)$currentRank];
+            } else {
+                // Participante válido, mas além do Top 10 ganha 1 ponto de participação
+                $p['points'] = 1;
+            }
+
+            $previousTime = $p['totalTime'];
+            $actualPosition++;
+            $CurrentsRoundResults[] = $p;
+        }
+
+        // DNF são anexados ao final da tabela com Rank e Pontos zerados
+        foreach ($dnfPilots as $p) {
+            $p['rank'] = 0;
+            $p['points'] = 0;
+            $CurrentsRoundResults[] = $p;
+        }
+
+        $msg = "\n\nPara ver a sua classificação geral no torneio, use o comando:";
+        $msg .= "\n*/poleResults*";
+
+        // Preparação para atualizar o objeto no db de forma limpa (sem strings extras de display)
+        $roundExists = false;
+        $finalStandingsForJson = [
+            'id' => 0,
+            'roundID' => $targetRound,
+            'results' => $CurrentsRoundResults
+        ];
+
+        foreach ($standings as &$s) {
+            if (($s['roundID'] ?? '') == $targetRound) {
+                $finalStandingsForJson['id'] = $s['id'] ?? getNextId($standings);
+                $s = $finalStandingsForJson;
+                $roundExists = true;
+                break;
+            }
+        }
+
+        if (!$roundExists) {
+            $finalStandingsForJson['id'] = getNextId($standings);
+            $standings[] = $finalStandingsForJson;
+        }
+
+        saveJson(FILE_STANDINGS_T6, $standings);
+
+        respond($msg, [
+            'state' => 'CLASSIFICACAO_RODADA',
+            'date' => date('c'),
+            'results' => $CurrentsRoundResults
+        ]);
+
 
     default:
         respond("❓ Comando não reconhecido ou não suportado via API.");
