@@ -1332,89 +1332,131 @@ switch ($cmd) {
         ]);
 
     case '/polefinalstandings':
-        // 1. Carrega apenas o standings.json, tornando independente do matches.json
-        $standings = getJson(FILE_STANDINGS_T6);
+    // 1. Carrega apenas o standings.json, tornando independente do matches.json
+    $standings = getJson(FILE_STANDINGS_T6);
 
-        if (empty($standings)) {
-            respond("❌ Nenhuma rodada foi registrada até o momento no torneio.", ['state' => 'ERRO_STANDINGS_VAZIO']);
+    if (empty($standings)) {
+        respond("❌ Nenhuma rodada foi registrada até o momento no torneio.", ['state' => 'ERRO_STANDINGS_VAZIO']);
+    }
+
+    $aggregated = [];
+
+    // 2. Itera sobre todas as rodadas salvas
+    foreach ($standings as $round) {
+        $results = $round['results'] ?? [];
+
+        foreach ($results as $r) {
+            // Compatibilidade: tenta usar pilotNickName (novo padrão) ou resolve via pilotID
+            $pilotIdentifier = $r['pilotNickName'] ?? '';
+
+            if (empty($pilotIdentifier) && isset($r['pilotID'])) {
+                $pilots = getJson(FILE_PILOTS);
+                $pInfo = getPilotById($r['pilotID'], $pilots);
+                $pilotIdentifier = getPilotDisplayNameByNick($pInfo);
+            }
+
+            if (empty($pilotIdentifier)) {
+                continue; // Pula se não conseguir identificar o piloto
+            }
+
+            // Inicializa o piloto no array de consolidação se não existir
+            if (!isset($aggregated[$pilotIdentifier])) {
+                $aggregated[$pilotIdentifier] = [
+                    'pilotNickName' => $pilotIdentifier,
+                    'totalPoints' => 0,
+                    'totalTime' => 0,
+                    'validRounds' => 0,
+                    'positionsCount' => [] // Novo array para registrar as posições de cada rodada
+                ];
+            }
+
+            // 3. Soma os pontos e os tempos totais
+            $aggregated[$pilotIdentifier]['totalPoints'] += (int)($r['points'] ?? 0);
+
+            $time = (int)($r['totalTime'] ?? 0);
+            if ($time > 0) { // Soma apenas tempos válidos (Ignora DNFs com 0 nas rodadas)
+                $aggregated[$pilotIdentifier]['totalTime'] += $time;
+                $aggregated[$pilotIdentifier]['validRounds']++; // Conta rodadas em que ele pontuou tempo
+            }
+
+            // Armazena a posição conquistada nesta rodada para o desempate (Regra 1)
+            $pos = (int)($r['rank'] ?? 0);
+            if ($pos > 0) {
+                $aggregated[$pilotIdentifier]['positionsCount'][$pos] = ($aggregated[$pilotIdentifier]['positionsCount'][$pos] ?? 0) + 1;
+            }
+        }
+    }
+
+    // 4. Converte o dicionário associativo para um array indexado
+    $finalStandings = array_values($aggregated);
+
+    // 5. Função de Comparação para Ordenação e Desempate (Closure)
+    $comparePilots = function($a, $b) {
+        // Regra Base: Maior Pontuação Total (Descendente)
+        if ($a['totalPoints'] !== $b['totalPoints']) {
+            return $b['totalPoints'] <=> $a['totalPoints'];
         }
 
-        $aggregated = [];
-
-        // 2. Itera sobre todas as rodadas salvas
-        foreach ($standings as $round) {
-            $results = $round['results'] ?? [];
-
-            foreach ($results as $r) {
-                // Compatibilidade: tenta usar pilotNickName (novo padrão) ou resolve via pilotID
-                $pilotIdentifier = $r['pilotNickName'] ?? '';
-
-                if (empty($pilotIdentifier) && isset($r['pilotID'])) {
-                    $pilots = getJson(FILE_PILOTS);
-                    $pInfo = getPilotById($r['pilotID'], $pilots);
-                    $pilotIdentifier = getPilotDisplayNameByNick($pInfo);
-                }
-
-                if (empty($pilotIdentifier)) {
-                    continue; // Pula se não conseguir identificar o piloto
-                }
-
-                // Inicializa o piloto no array de consolidação se não existir
-                if (!isset($aggregated[$pilotIdentifier])) {
-                    $aggregated[$pilotIdentifier] = [
-                        'rank' => 0,
-                        'pilotNickName' => $pilotIdentifier,
-                        'totalPoints' => 0,
-                        'totalTime' => 0,
-                        'totalTimeFormatted' => 0,
-                        'validRounds' => 0
-                    ];
-                }
-
-                // 3. Soma os pontos e os tempos totais
-                $aggregated[$pilotIdentifier]['totalPoints'] += (int)($r['points'] ?? 0);
-
-                $time = (int)($r['totalTime'] ?? 0);
-                if ($time > 0) { // Soma apenas tempos válidos (Ignora DNFs com 0 nas rodadas)
-                    $aggregated[$pilotIdentifier]['totalTime'] += $time;
-                    $aggregated[$pilotIdentifier]['validRounds']++; // Conta rodadas em que ele pontuou tempo
-                }
+        // Regra Desempate 1: Melhores posições conquistadas (Countback)
+        // Varre do 1º ao 50º lugar para ver quem tem mais daquela posição
+        for ($i = 1; $i <= 32; $i++) {
+            $countA = $a['positionsCount'][$i] ?? 0;
+            $countB = $b['positionsCount'][$i] ?? 0;
+            if ($countA !== $countB) {
+                return $countB <=> $countA; // Descendente (Quem tem maior contagem vence)
             }
         }
 
-        // 4. Converte o dicionário associativo para um array indexado
-        $finalStandings = array_values($aggregated);
-
-        // 5. Ordenação do Campeonato:
-        // Primeiro: Maior Pontuação.
-        // Desempate: Menor Tempo Total (DNFs vão para o fim).
-        usort($finalStandings, function($a, $b) {
-            if ($a['totalPoints'] !== $b['totalPoints']) {
-                return $b['totalPoints'] <=> $a['totalPoints']; // Maior ponto vence (DESC)
-            }
-
-            // Empate: Verifica o tempo. Quem tem 0 (DNF) recebe o pior tempo possível (PHP_INT_MAX)
-            $timeA = $a['totalTime'] > 0 ? $a['totalTime'] : PHP_INT_MAX;
-            $timeB = $b['totalTime'] > 0 ? $b['totalTime'] : PHP_INT_MAX;
-
-            return $timeA <=> $timeB; // Menor tempo vence (ASC)
-        });
-
-        // 6. Preparação final e injeção do tempo formatado
-        $rank = 1;
-        foreach ($finalStandings as &$fs) {
-            $fs['rank'] = $rank;
-            $fs['totalTimeFormatted'] = $fs['totalTime'] > 0 ? formatMsToTime($fs['totalTime']) : "0:00:000";
-            $rank++;
+        // Regra Desempate 2: Menor número de DNFs (Maior número de rodadas válidas)
+        if ($a['validRounds'] !== $b['validRounds']) {
+            return $b['validRounds'] <=> $a['validRounds'];
         }
 
-        $msg = " \n🏁 *Parabéns você chegou na linha de chegada!* 🏁👏🏽 *Obrigado por participar!* 👏🏽";
+        // Regra Desempate 3: Menor Tempo Total (ignorando 0ms do DNF que recebe o maximo do PHP)
+        $timeA = $a['totalTime'] > 0 ? $a['totalTime'] : PHP_INT_MAX;
+        $timeB = $b['totalTime'] > 0 ? $b['totalTime'] : PHP_INT_MAX;
+        if ($timeA !== $timeB) {
+            return $timeA <=> $timeB; // Ascendente (Menor tempo vence)
+        }
 
-        respond($msg, [
-            'state' => 'CLASSIFICACAO_GERAL_FINAL',
-            'date' => date('c'),
-            'results' => $finalStandings
-        ]);
+        // Regra Desempate 4: Retorna 0 (Empate absoluto)
+        return 0;
+    };
+
+    // Aplica a ordenação
+    usort($finalStandings, $comparePilots);
+
+    // 6. Preparação final, injeção do tempo formatado e atribuição de rank
+    $rankIndex = 1;
+    $actualRank = 1;
+    $prevPilot = null;
+
+    foreach ($finalStandings as &$fs) {
+        // Checa se o piloto atual empatou absolutamente em todas as 3 regras com o piloto anterior
+        if ($prevPilot !== null && $comparePilots($fs, $prevPilot) === 0) {
+            // Mantém o mesmo rank do piloto anterior
+        } else {
+            // Atualiza o rank de fato (ex: se o 1º e 2º empataram e pegaram Rank 1, o 3º cara recebe Rank 3)
+            $actualRank = $rankIndex;
+        }
+
+        $fs['rank'] = $actualRank;
+        $fs['totalTimeFormatted'] = $fs['totalTime'] > 0 ? formatMsToTime($fs['totalTime']) : "0:00:000";
+
+        // Remove a estrutura de contagem para não poluir o JSON que vai para o Front-End
+        unset($fs['positionsCount']);
+
+        $prevPilot = $fs;
+        $rankIndex++;
+    }
+
+    $msg = " \n🏁 *Parabéns você chegou na linha de chegada!* 🏁👏🏽 *Obrigado por participar!* 👏🏽";
+
+    respond($msg, [
+        'state' => 'CLASSIFICACAO_GERAL_FINAL',
+        'date' => date('c'),
+        'results' => $finalStandings
+    ]);
 
     default:
         respond("❓ Comando não reconhecido ou não suportado via API.");
