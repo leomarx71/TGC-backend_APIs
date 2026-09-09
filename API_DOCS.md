@@ -1,291 +1,378 @@
-# Documentação da API Externa (Telegram Webhook)
+# Documentação das APIs do TGC
 
-Este documento descreve as APIs expostas para consumo externo, especificamente as utilizadas pelo Webhook do Telegram.
+Este documento descreve as APIs e integrações expostas pelo backend. A partir da migração do front-end, o fluxo de botões inline do Telegram deixou de ser a interface oficial do sistema. O backend continua aceitando comandos do Telegram, mas a integração principal para o produto atual usa payloads em JSON via API HTTP e não depende mais de `callback_query`.
 
-## Classe PHP Principal
-A lógica de recebimento e processamento das chamadas do Telegram não está encapsulada em uma classe, mas sim no arquivo:
-- `public/botMain.php`
+## Visão geral
+
+O projeto expõe duas integrações relevantes:
+
+- `public/botMain.php`: webhook legado do Telegram que processa mensagens/commands do bot.
+- `public/agendamentosAPI.php`: API pública principal usada pelo front-end para consultar e alterar o fluxo de partidas/agendamentos.
+- `public/admin.php`: painel administrativo interno e não é uma API de integração da aplicação cliente.
 
 ## Autenticação
-O bot utiliza um mecanismo de segurança baseado no header `X-Telegram-Bot-API-Secret-Token`, conforme recomendado pela documentação oficial do Telegram.
 
-- **Header:** `X-Telegram-Bot-API-Secret-Token`
-- **Validação:** O valor recebido no header é comparado com a variável de ambiente `WEBHOOK_SECRET` definida no arquivo `.env`.
-- **Falha:** Caso o token seja inválido ou ausente, o servidor retorna `HTTP 403 Forbidden` e encerra a execução.
+A API recebe o token de segurança no header `X-Telegram-Bot-API-Secret-Token`.
+
+- Header: `X-Telegram-Bot-API-Secret-Token`
+- Validação: o valor é comparado com `WEBHOOK_SECRET` do `.env`.
+- Sem token ou token inválido: `HTTP 403 Forbidden`.
 
 ---
 
-## Endpoints e Funcionalidades
+## 1. Webhook do Telegram (`public/botMain.php`)
 
-### 1. Webhook Principal (Telegram Update)
-Este é o único ponto de entrada para todas as interações vindas do Telegram (mensagens, botões, comandos).
+Esse endpoint continua sendo o ponto de entrada do bot do Telegram quando o Telegram envia `Update`s para o webhook.
 
-- **URL:** `https://[dominio]/public/botMain.php`
-- **Método:** `POST`
-- **Corpo (JSON):** Objeto `Update` do Telegram.
-- **Exemplo de Chamada (Simulada):**
+- URL: `https://[dominio]/public/botMain.php`
+- Método: `POST`
+- Conteúdo: payload do Telegram em formato JSON
+- Uso principal: receber comandos de texto, mensagens e eventos do bot.
+
+Observação importante: os callbacks de botão inline (`callback_query`) não são mais o fluxo preferencial no front-end atual e não devem ser usados como contrato da API do produto.
+
+### Exemplo de payload
+
 ```bash
 curl -X POST "https://seu-dominio.com/public/botMain.php" \
-     -H "Content-Type: application/json" \
-     -H "X-Telegram-Bot-API-Secret-Token: SEU_TOKEN_AQUI" \
-     -d '{
-       "update_id": 123456789,
-       "message": {
-          "from": {
-            "pilotID": Number,
-            "pilotName": "Name"
-        },
-        "function": "/proposal_confirm 3"
-       }
-     }'
+  -H "Content-Type: application/json" \
+  -H "X-Telegram-Bot-API-Secret-Token: SEU_TOKEN_AQUI" \
+  -d '{
+   "update_id": 123456789,
+   "message": {
+     "from": {
+       "pilotID": 123,
+       "pilotName": "Piloto 1"
+     },
+     "function": "/agendar 10"
+   }
+  }'
 ```
 
----
+### Comandos suportados
 
-## Comandos Disponíveis (Invocados via Mensagem)
+Os comandos abaixo são interpretados pelo backend e podem ser usados por mensagem no Telegram ou por chamadas programáticas via API genérica.
 
-Abaixo estão os comandos processados pelo `botMain.php`. Todos exigem que o usuário esteja cadastrado como piloto (exceto `/inscrever` e comandos administrativos).
+#### Públicos
+- `/inscrever`
+- `/ajuda`
+- `/ayuda`
+- `/links`
 
-### Comandos Públicos / Iniciais
-| Comando | Método | Descrição |
-| :--- | :--- | :--- |
-| `/inscrever` | `POST` | Realiza o cadastro do piloto no sistema. |
-| `/ajuda` | `POST` | Exibe a lista de comandos e guia em Português. |
-| `/ayuda` | `POST` | Exibe a lista de comandos e guia em Espanhol. |
+#### Pilotos
+- `/meuNick`
+- `/partidas`
+- `/agendar`
+- `/play`
+- `/audit`
 
-### Comandos de Piloto (Requerem Cadastro)
-| Comando | Método | Descrição | Exemplo |
-| :--- | :--- | :--- | :--- |
-| `/meuNick` | `POST` | Consulta ou altera o nickname do piloto (limite de 90 dias). | `/meuNick NovoNome` |
-| `/partidas` | `POST` | Lista as partidas pendentes do piloto. | `/partidas` |
-| `/agendar` | `POST` | Inicia o fluxo de agendamento de uma partida. | `/agendar 10` |
-| `/play` | `POST` | Notifica que o piloto está pronto para jogar. | `/play 10` |
-| `/audit` | `POST` | Exibe o histórico de ações de uma partida específica. | `/audit 10` |
-| `/links` | `POST` | Exibe links importantes do campeonato. | `/links` |
+#### Administradores
+- `/resultado ID`
+- `/resultado ID [nickname]`
+- `/resultado ID empate`
+- `/resultado ID woduplo`
 
-### Comandos de Administrador
-| Comando | Método | Descrição | Exemplo |
-| :--- | :--- | :--- | :--- |
-| `/resultado ID` | `POST` | Consulta os nicknames e `telegram_id` dos pilotos da partida. | `/resultado 10` |
-| `/resultado ID [nickname]` | `POST` | Define o piloto vencedor da partida. | `/resultado 10 Senna` |
-| `/resultado ID empate` | `POST` | Define o resultado da partida como Empate. | `/resultado 10 empate` |
-| `/resultado ID woduplo` | `POST` | Define o resultado da partida como W.O. Duplo. | `/resultado 10 woduplo` |
-
-### Tratamento de Callback Queries (Botões Inline)
-O bot também processa interações de botões (`callback_query`), utilizados nos fluxos de agendamento:
-- `calendar`: Abre o seletor de datas.
-- `sel_date`: Seleciona uma data.
-- `sel_time`: Seleciona um horário.
-- `confirm_sched`: Confirma a proposta de horário.
-- `accept_sched`: Aceita uma proposta recebida.
-- `cancel_op`: Cancela a operação atual.
-
+A partir da nova arquitetura, os botões inline e `callback_query` foram removidos do contrato do front-end. O cliente atual envia ações por comandos/texto ou por payloads de API estruturados.
 
 ---
 
-## 2. API de Agendamentos (Genérica)
-Esta API permite a invocação de comandos do bot de forma programática, sem depender diretamente da interface do Telegram, retornando a resposta em formato JSON.
+## 2. API externa de agendamentos (`public/agendamentosAPI.php`)
 
-- **URL:** `https://[dominio]/public/agendamentosAPI.php`
-- **Método:** `POST`
-- **Header:** `X-Telegram-Bot-API-Secret-Token` (Mesmo valor do Webhook)
-- **Corpo (JSON):**
+Essa é a API principal utilizada pelo front-end externo. Ela abstrai os comandos do bot em respostas JSON limpas e padronizadas.
+
+- URL: `https://[dominio]/public/agendamentosAPI.php`
+- Método: `POST`
+- Header obrigatório: `X-Telegram-Bot-API-Secret-Token`
+- Corpo esperado:
+
 ```json
 {
-  "update_id": 123456789,
   "message": {
-    "from": { "pilotID": 123456789 },
-    "function": "/ajuda"
+   "from": {
+     "pilotID": 12345,
+     "pilotName": "Piloto 1"
+   },
+   "function": "/agendar 10",
+   "bookDate": "27/08",
+   "bookTime": "19:00"
   }
 }
 ```
 
-### Funcionalidades Suportadas via API
-A API suporta a maioria dos comandos de texto do bot. O campo `function` ignora o caso (case-insensitive).
+### Estrutura da resposta
 
-| Comando | Descrição |
-| :--- | :--- |
-| `/inscrever` | Realiza o cadastro do piloto (usa `pilotID` como ID do Telegram). |
-| `/partidas` | Retorna as partidas pendentes do piloto. |
-| `/meuNick` | Altera o nickname do piloto. |
-| `/play ID` | Notifica que o piloto está pronto para a partida. |
-| `/resultado ID` | (Admin) Consulta pilotos e define vencedor (`/resultado ID nick`), empate (`/resultado ID empate`) ou W.O. duplo (`/resultado ID woduplo`). |
-| `/audit ID` | Retorna o histórico da partida. |
-| `/ajuda`, `/links` | Retorna informações de ajuda e links úteis. |
+Toda resposta da API tem o formato base:
 
-*Nota: O comando `/resultado` é exclusivo para administradores. Pilotos comuns receberão erro ao tentar utilizá-lo.*
-
-### Fluxo de Resultado (`/resultado` - Exclusivo Administradores)
-
-O comando `/resultado` permite que os administradores consultem e definam oficialmente o resultado de qualquer partida.
-
-1. **Consulta de Dados dos Pilotos (`/resultado ID`)**:
-   - Retorna os nomes/nicknames de ambos os pilotos e seus respectivos `telegram_id`.
-   - Estado retornado: `REQUER_RESULTADO_ADMIN`.
-
-2. **Definição de Vencedor / Empate / W.O. Duplo**:
-   - `/resultado ID [nickname]`: Define o piloto correspondente como vencedor.
-   - `/resultado ID empate`: Define o resultado como Empate (`winner_id = 0`).
-   - `/resultado ID woduplo`: Define o resultado como W.O. Duplo (`winner_id = -1`).
-   - Estado retornado: `FINALIZADO_ADMIN`.
-
-3. **Tentativa de Execução por Piloto Não-Administrador**:
-   - Retorna mensagem de erro de negócio informando que apenas administradores podem executar.
-   - Estado retornado: `ERRO_APENAS_ADMIN`.
-
-#### Exemplo de Consulta de Resultado (JSON):
 ```json
 {
   "ok": true,
-  "response": "🏆 *Definir Resultado - Partida #10*...",
+  "response": "Mensagem legível para o cliente",
   "data": {
-    "match_id": 10,
-    "player_1": {
-      "id": 1,
-      "name": "Senna",
-      "telegram_id": 1001
-    },
-    "player_2": {
-      "id": 2,
-      "name": "Prost",
-      "telegram_id": 2002
-    },
-    "state": "REQUER_RESULTADO_ADMIN"
+   "matchID": 10,
+   "state": "REQUER_PROPOSTA"
   }
 }
 ```
 
-### Fluxo de Agendamento (`/agendar`)
+Campos importantes:
+- `ok`: indica sucesso da operação.
+- `response`: texto legível retornado ao cliente.
+- `data`: objeto com informações estruturadas para o frontend decidir a tela/ação.
+- `data.state`: estado do fluxo atual, usado pelo cliente para controlar a UI.
 
-O comando `/agendar ID` na API retorna um campo `state` dentro do objeto `data`. Este estado deve ser utilizado pela aplicação cliente para decidir qual interface ou ação apresentar ao usuário.
+### Comandos suportados
 
-| Estado (`state`) | Descrição | Próxima Ação Esperada |
-| :--- | :--- | :--- |
-| `REQUIRE_PROPOSAL` | Nenhuma proposta ativa. | Usuário deve enviar uma data/hora (Ex: `25/07 19:00`). |
-| `WAITING_OPPONENT` | Proposta feita pelo usuário atual, aguardando oponente. | Aguardar ou enviar nova data para alterar a proposta. |
-| `REQUIRE_DECISION_PROPOSAL` | Proposta recebida do oponente, aguardando decisão. | Usuário deve escolher: [1] Confirmar ou [2] Contra-proposta. |
-| `CONFIRMED_CAN_EDIT` | Agendamento já confirmado pelas duas partes. | Nenhuma ação necessária, mas permite enviar nova data para reagendar. |
-| `ERROR_MISSING_ID` | ID da partida não foi fornecido no comando. | Fornecer o ID (Ex: `/agendar 123`). |
-| `ERROR_NOT_FOUND` | Partida com o ID informado não existe. | Verificar o ID informado. |
-| `ERROR_COMPUTER_MATCH` | Partida de Pole Position (contra o computador). | Não requer agendamento. |
-| `ERROR_NOT_OWNER` | O piloto autenticado não faz parte desta partida. | Verificar se o `pilotID` está correto. |
+A API aceita os mesmos comandos textuais do bot, com o mesmo comportamento sem depender de callbacks do Telegram.
 
-#### Exemplo de Resposta (JSON):
-```json
-{
-  "ok": true,
-  "response": "📅 *Agendamento #123*\n\nNenhuma proposta ativa...",
-  "data": {
-    "match_id": 123,
-    "state": "REQUIRE_PROPOSAL"
-  }
-}
-```
+- `/inscrever`
+- `/partidas`
+- `/meuNick`
+- `/agendar`
+- `/proposal`
+- `/proposal_confirm`
+- `/play`
+- `/resultado`
+- `/audit`
+- `/ajuda`
+- `/links`
+- `/poleposition`
+- `/polepositionsendtimes`
+- `/polerounds`
+- `/polefinalstandings`
+
+### Fluxo principal do agendamento
+
+A seguir está a descrição prática do fluxo e dos estados possíveis.
+
+#### 1) Início do agendamento
+
+Comando:
+- `/agendar ID`
+
+Possíveis estados:
+- `ERRO_NAO_ENCONTRADO`: partida não existe.
+- `ERRO_PARTIDA_COMPUTADOR`: jogo contra computador/Pole Position, sem agendamento.
+- `ERRO_NAO_PERTENCE`: piloto não pertence à partida.
+- `REQUER_PROPOSTA`: ainda não há proposta ativa; frontend deve solicitar a data/hora.
+- `AGUARDANDO_OPONENTE`: o usuário enviou uma proposta e está aguardando resposta do adversário.
+- `REQUER_DECISAO_PROPOSTA`: existe um convite recebido e o usuário precisa aceitar ou contra-propor.
+- `CONFIRMADO_PODE_EDITAR`: agendamento já confirmado e a partida pode ser reagendada.
+
+Fluxo:
+- Usuário chama `/agendar 10`
+- Frontend recebe `state`
+- Se `REQUER_PROPOSTA`, coleta data/hora e chama `/proposal 10`
+- Se `AGUARDANDO_OPONENTE`, aguarda o adversário
+- Se `REQUER_DECISAO_PROPOSTA`, mostra opções de aceitar/recusar ou propor nova data
+- Se `CONFIRMADO_PODE_EDITAR`, partida agendada e aceita novo agendamento
+
+#### 2) Proposta de horário
+
+Comando:
+- `/proposal ID` com `bookDate` e `bookTime`
+
+Validações:
+- `FORA_DO_PRAZO`: data oferecida passou do deadline da partida
+- `MENOS_DE_2_HORAS`: proposta muito próxima do momento atual
+
+Estado de sucesso:
+- `AGUARDANDO_OPONENTE`
+
+Fluxo:
+- Usuário envia data/hora válida
+- API salva a proposta em `schedules` com status `PROPOSTO`
+- Partida passa para status `PROPOSTO`
+- Frontend apenas exibe que a proposta foi enviada e aguarda confirmação
+
+#### 3) Confirmação da proposta
+
+Comando:
+- `/proposal_confirm ID`
+
+Possíveis estados:
+- `ERRO_NENHUMA_PROPOSTA`: não existe proposta ativa para confirmar
+- `CONFIRMADO`: confirmação concluída com sucesso
+
+Fluxo:
+- O oponente aceita a proposta
+- API atualiza `status` para `CONFIRMADO`
+- Partida passa para `AGENDADO`
+- Frontend pode mostrar confirmação e permitir que o usuário use `/play ID`
+
+#### 4) Notificação de presença no horário (`/play`)
+
+Comando:
+- `/play ID`
+
+Possíveis estados:
+- `PLAY_MUITO_CEDO`: tentativa antes da janela válida do jogo
+- `JOGADOR_ATRASADO`: feriado/atraso fora do limite de janela
+- `JOGADOR_PRONTO`: agendamento confirmado e jogador compareceu no horário
+- `JOGADOR_PRONTO_SEM_AGENDAMENTO`: jogador marcou presença mesmo sem confirmação do outro lado
+- `STATUS_PLAY_DESCONHECIDO`: status da partida não permite uso do `/play`
+
+Fluxo:
+- Há uma janela de ±30 minutos em torno do horário agendado
+- Se o status do agendamento está `CONFIRMADO`, o `/play` aceita normalmente
+- Se o status está `PROPOSTO`, ainda registra presença, mas sem confirmação completa
+
+#### 5) Resultado da partida
+
+Comando:
+- `/resultado ID`
+- `/resultado ID nickname`
+- `/resultado ID empate`
+- `/resultado ID woduplo`
+
+Possíveis estados:
+- `ERRO_FALTA_ID`: faltou o número da partida
+- `ERRO_APENAS_ADMIN`: ação executada por usuário sem permissão
+- `ERRO_NAO_ENCONTRADO`: partida inexistente
+- `ERRO_PARTIDA_COMPUTADOR`: partida de Pole Position / computador
+- `REQUER_RESULTADO_ADMIN`: admin consultou a partida e precisa informar o vencedor
+- `ERRO_OPCAO_INVALIDA`: nickname/opção inválida
+- `FINALIZADO_ADMIN`: resultado registrado com sucesso
+
+Fluxo:
+- Admin chama `/resultado 10`
+- API retorna os pilotos e lista as opções válidas
+- O admin informa vencedor, empate ou W.O. duplo
+- API atualiza `winnerID` e concede status `CONCLUIDO` na partida
 
 ---
 
-# Documentação de Status do Fluxo
+## 3. APIs de Pole Position e classificação
 
-Este documento descreve todos os status e estados utilizados pelo sistema de agendamento de partidas, incluindo o fluxo de partidas, agendamentos, respostas da API e ações de auditoria.
+Além do fluxo normal de agendamento, a API também expõe o conjunto de endpoints específicos do modo Pole Position / T6, usados para envio de tempos e leitura de classificações por rodada e geral.
+
+### 3.1. `/poleposition ID`
+
+- Objetivo: listar as pistas da rodada e preparar o envio de tempos.
+- Resposta esperada: texto com pistas + estado `PENDENTE_TEMPOS` em `data.state`.
+- Estado de sucesso: `PENDENTE_TEMPOS`
+- Erros possíveis:
+  - `ERRO_NAO_ENCONTRADO`
+  - `RODADA_FINALIZADA`
+  - `ERRO_NAO_PERTENCE`
+
+Fluxo:
+- Cliente chama `/poleposition 42`
+- API valida se a partida existe, participa do confronto e não está encerrada
+- Retorna as pistas da partida e orienta o envio dos tempos
+
+### 3.2. `/polepositionsendtimes ID`
+
+- Objetivo: registrar os tempos e, opcionalmente, o link do vídeo/prova.
+- Payload esperado: `times` como lista com `pista` e `tempo`, além de `videoLink` quando houver.
+- Estados possíveis:
+  - `CONFIRMADO_PODE_EDITAR`: tempos enviados com sucesso e link disponível.
+  - `CONFIRMADO_SEM_VIDEO`: tempos enviados com sucesso, sem vídeo/prova.
+  - `ERRO_DADOS`: formato inválido de tempo ou pista.
+  - `ERRO_NAO_ENCONTRADO`
+  - `RODADA_FINALIZADA`
+
+Fluxo:
+- Piloto envia os tempos da rodada
+- API valida o formato de cada tempo (`MM:SS:MMM`)
+- Salva o resultado em `FILE_RESULTS_T6`
+- Atualiza o status da partida para `CONFIRMADO_PODE_EDITAR` ou `CONFIRMADO_SEM_VIDEO`
+
+### 3.3. `/polerounds X`
+
+- Objetivo: consultar a classificação da rodada `X` do modo Pole Position.
+- Exemplo: `/polerounds 2`
+- Estados possíveis:
+  - `ERRO_PARAMETRO_INVALIDO`: ausência de rodada
+  - `ERRO_NAO_ENCONTRADO`: rodada inexistente
+  - `ERRO_STATUS_INCONSISTENTE`: algumas partidas da rodada já terminaram e outras não
+  - `CLASSIFICACAO_RODADA_FINALIZADA`: a rodada já foi finalizada e os resultados salvos
+  - `CLASSIFICACAO_RODADA`: classificação atual da rodada calculada
+
+Fluxo:
+- API identifica todas as partidas da rodada `T6`
+- Agrupa os resultados por piloto
+- Ordena pela menor soma de tempos
+- Aplica regras de pontuação do torneio
+- Retorna a tabela final ou parcial, conforme o estado da rodada
+
+### 3.4. `/polefinalstandings`
+
+- Objetivo: consultar a classificação geral final acumulada do torneio Pole Position.
+- Estados possíveis:
+  - `ERRO_STANDINGS_VAZIO`: ainda não há standings salvos
+  - `CLASSIFICACAO_GERAL_FINAL`: lista final consolidada do campeonato
+
+Fluxo:
+- API lê os `standings` salvos por rodada
+- Consolida pontos e tempos por piloto
+- Aplica desempates por contagem de melhores posições, rodadas válidas, tempo total e empate absoluto
+- Retorna a tabela geral final
 
 ---
 
-# 1. Status da Partida (`matches.json`)
+## 4. Estados gerais da API (`data.state`)
 
-Os status da partida representam o estado geral da disputa dentro do campeonato.
+Os estados abaixo são os mais importantes para o frontend decidir a próxima tela ou ação.
 
-| Status | Descrição |
-|---------|-----------|
-| `PENDENTE` | A partida foi criada pelo administrador, mas ainda não existe nenhum agendamento iniciado entre os jogadores. |
-| `PROPOSTO` | Um dos jogadores enviou uma proposta de data e horário, porém ela ainda depende da aprovação do adversário. |
-| `AGENDADO` | Os dois jogadores concordaram com a proposta e a partida possui data e horário oficialmente marcados. |
-| `CONCLUIDO` | A partida foi encerrada pelo administrador, independentemente do resultado (vitória, empate ou W.O.). |
-
----
-
-# 2. Status do Agendamento (`schedules.json`)
-
-Os status do agendamento representam apenas o processo de negociação entre os jogadores.
-
-| Status | Descrição |
-|---------|-----------|
-| `PROPOSTO` | Existe uma proposta de data e horário aguardando resposta do adversário. |
-| `CONFIRMADO` | O adversário aceitou a proposta. Neste momento a partida passa para o status `AGENDADO`. |
-| `PARTIDA_FINALIZADA` | Definido pelo painel administrativo após o registro oficial do resultado da partida. |
-| `RESULTADO_PROPOSTO` | Utilizado pelo bot do Telegram durante o envio do resultado e da captura de tela (print). |
-| `RESULTADO_EM_DISPUTA` | Utilizado quando existe divergência entre os jogadores sobre o resultado informado. |
-
----
-
-# 3. Estados Retornados pela API (`data.state`)
-
-Os estados retornados pela API informam à interface qual ação ou tela deve ser apresentada ao usuário.
-
-## Estados de erro
+### Estados de erro
 
 | State | Descrição |
-|-------|-----------|
-| `ERRO_NAO_ENCONTRADO` | O `matchId` informado não existe. |
-| `ERRO_PARTIDA_COMPUTADOR` | Tentativa de agendar ou registrar resultado para partida do tipo Pole Position (jogo solo). |
-| `ERRO_NAO_PERTENCE` | O usuário autenticado não participa da partida solicitada. |
-| `ERRO_NENHUMA_PROPOSTA` | Foi solicitada uma confirmação, porém não existe proposta cadastrada. |
-| `ERRO_APENAS_ADMIN` | Comando ou ação restrita exclusivamente a administradores. |
-| `ERRO_OPCAO_INVALIDA` | Opção ou nickname inválido ao registrar resultado. |
-| `ERRO_FALTA_ID` | ID da partida não informado no comando. |
+| --- | --- |
+| `ERRO_NAO_ENCONTRADO` | Partida não encontrada. |
+| `ERRO_PARTIDA_COMPUTADOR` | Partida de Pole Position / computador. |
+| `ERRO_NAO_PERTENCE` | Piloto não participa da partida. |
+| `ERRO_NENHUMA_PROPOSTA` | Foi solicitada confirmação sem proposta ativa. |
+| `ERRO_APENAS_ADMIN` | Comando restrito a administradores. |
+| `ERRO_OPCAO_INVALIDA` | Opção inválida para resultado. |
+| `ERRO_FALTA_ID` | ID da partida não informado. |
+| `ERRO_DADOS` | Dados inválidos no payload ou formato de tempo/pista incorreto. |
+| `ERRO_PARAMETRO_INVALIDO` | Parâmetro obrigatório ausente ou inválido. |
+| `ERRO_STATUS_INCONSISTENTE` | A rodada tem status inconsistente entre partidas. |
+| `ERRO_STANDINGS_VAZIO` | Não há standings salvos para a competição. |
+| `FORA_DO_PRAZO` | A data proposta excedeu o deadline da partida. |
+| `MENOS_DE_2_HORAS` | Proposta muito próxima do horário atual. |
 
-## Estados do fluxo
+### Estados do fluxo
 
 | State | Descrição |
-|-------|-----------|
-| `REQUER_PROPOSTA` | Não existe agendamento. A interface deve solicitar ao usuário uma nova proposta de data e horário. |
-| `AGUARDANDO_OPONENTE` | A proposta foi enviada com sucesso. A interface deve apenas aguardar a resposta do adversário. |
-| `REQUER_DECISAO_PROPOSTA` | Existe uma proposta pendente. A interface deve oferecer as opções de **Aceitar** ou **Contra-proposta**. |
-| `REQUER_CONFIRMACAO_PROPOSTA` | A interface deve solicitar uma confirmação ("OK") antes de enviar definitivamente a proposta. |
-| `CONFIRMADO_PODE_EDITAR` | A partida já está agendada, porém ainda é permitido solicitar um reagendamento. |
-| `CONFIRMADO` | Operação realizada com sucesso. |
-| `REQUER_RESULTADO_ADMIN` | Consulta de partida para envio de resultado por administrador, aguardando definição de vencedor, empate ou W.O. duplo. |
-| `FINALIZADO_ADMIN` | Resultado oficialmente definido pelo administrador e partida finalizada. |
+| --- | --- |
+| `REQUER_PROPOSTA` | Nenhuma proposta ativa. Solicitar nova data/hora. |
+| `AGUARDANDO_OPONENTE` | Proposta criada e aguardando resposta. |
+| `REQUER_DECISAO_PROPOSTA` | Existe proposta recebida e o usuário precisa decidir. |
+| `CONFIRMADO_PODE_EDITAR` | Partida confirmada mas pode ser reagendada. |
+| `CONFIRMADO` | Operação confirmada com sucesso. |
+| `PENDENTE_TEMPOS` | O piloto deve enviar os tempos da rodada de Pole Position. |
+| `CONFIRMADO_SEM_VIDEO` | Tempos enviados com sucesso sem link de prova. |
+| `REQUER_RESULTADO_ADMIN` | Consulta de admin para registrar resultado. |
+| `FINALIZADO_ADMIN` | Resultado oficial registrado. |
+| `CLASSIFICACAO_RODADA` | Classificação atual de uma rodada de Pole Position. |
+| `CLASSIFICACAO_RODADA_FINALIZADA` | Classificação final de rodada já salva. |
+| `CLASSIFICACAO_GERAL_FINAL` | Classificação geral consolidada do campeonato. |
+| `JOGADOR_PRONTO` | O piloto marcou presença no horário. |
+| `JOGADOR_ATRASADO` | O piloto tentou entrar fora da janela permitida. |
+| `PLAY_MUITO_CEDO` | Tentativa de play antes da janela válida. |
 
 ---
 
-# 4. Ações de Auditoria (`audit/log`)
+## 4. Observações finais
 
-As ações de auditoria registram os eventos relevantes ocorridos durante o fluxo de agendamento.
+- O webhook do agora é pelo WhatsApp e ele é o frontEnd funcionando para integração com o BOT, mas a lógica do produto moderno usa `public/agendamentosAPI.php` como contrato principal.
+- `public/admin.php` é uma interface administrativa local e não faz parte da API pública consumida pelo front-end.
 
-| Ação | Descrição |
-|------|-----------|
-| `INICIO_NOVA_PROPOSTA` | O jogador informou uma data e horário, mas a API ainda aguarda a confirmação final ("OK"). |
-| `PROPOSTO` | Uma proposta de agendamento foi enviada ao adversário. |
-| `REAGENDADO` | Foi realizada uma contra-proposta para um agendamento existente. |
-| `CONFIRMADO` | O agendamento foi aceito pelo adversário. |
-| `JOGADOR_PRONTO` | O jogador utilizou o comando `/play` para informar que está pronto para iniciar a partida, dentro da janela permitida de 30 minutos antes do horário agendado. |
-
----
-
-# Resumo do Fluxo
+### Resumo do fluxo
 
 ```text
 PENDENTE
-    │
-    ▼
-REQUER_PROPOSTA
-    │
-    ▼
-PROPOSTO
-    │
-    ▼
-CONFIRMADO
-    │
-    ▼
-AGENDADO
-    │
-    ▼
-JOGADOR_PRONTO (/play)
-    │
-    ▼
-PARTIDA_FINALIZADA
-    │
-    ▼
-CONCLUIDO
+  -> /agendar -> REQUER_PROPOSTA
+  -> /proposal -> PROPOSTO -> AGUARDANDO_OPONENTE
+  -> /proposal_confirm -> CONFIRMADO -> AGENDADO
+  -> /play -> JOGADOR_PRONTO
+  -> /resultado -> FINALIZADO_ADMIN -> CONCLUIDO
+
+POLE POSITION
+  -> /poleposition -> PENDENTE_TEMPOS
+  -> /polepositionsendtimes -> CONFIRMADO_PODE_EDITAR / CONFIRMADO_SEM_VIDEO
+  -> /polerounds -> CLASSIFICACAO_RODADA
+  -> /polefinalstandings -> CLASSIFICACAO_GERAL_FINAL
 ```
 
