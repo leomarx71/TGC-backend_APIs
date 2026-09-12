@@ -1,78 +1,146 @@
 [
   {
     "id": "T0",
-    "name": "ADM - Bot WhatsApp 🤖 🏁"
+    "name": "ADM - Bot WhatsApp 🤖 🏁",
+    "series": "Testes",
+    "category": "Sistema / Admin",
+    "aliases": []
   },
   {
     "id": "T1",
-    "name": "Torneio de Verão: Dakar Series"
+    "name": "Torneio de Verão: Dakar Series",
+    "series": "Sazonais",
+    "category": "Verão",
+    "aliases": []
   },
   {
     "id": "T2",
-    "name": "American LeMans Series"
+    "name": "American LeMans - Diamond Series",
+    "series": "Pontos Corridos",
+    "category": "Diamond",
+    "aliases": [
+      "American LeMans Series"
+    ]
   },
   {
     "id": "T3",
-    "name": "La Liga - Série Ouro"
+    "name": "American LeMans - Rubi Series",
+    "series": "Pontos Corridos",
+    "category": "Rubi",
+    "aliases": [
+      "Asia LeMans Series"
+    ]
   },
   {
     "id": "T4",
-    "name": "La Liga - Série Prata"
+    "name": "American LeMans - Safira Series",
+    "series": "Pontos Corridos",
+    "category": "Safira",
+    "aliases": []
   },
   {
     "id": "T5",
-    "name": "La Liga - Série Bronze"
+    "name": "La Liga - Série Ouro",
+    "series": "La Liga",
+    "category": "Ouro",
+    "aliases": []
   },
   {
     "id": "T6",
-    "name": "TGC Pole Position"
+    "name": "La Liga - Série Prata",
+    "series": "La Liga",
+    "category": "Prata",
+    "aliases": []
   },
   {
     "id": "T7",
-    "name": "Torneio de Outono: Acropolis Cup"
+    "name": "La Liga - Série Bronze",
+    "series": "La Liga",
+    "category": "Bronze",
+    "aliases": []
   },
   {
     "id": "T8",
-    "name": "F1 Academy"
+    "name": "TGC Pole Position",
+    "series": "Time Trial",
+    "category": "Time Attack",
+    "aliases": []
   },
   {
     "id": "T9",
-    "name": "Copa TGC"
+    "name": "Torneio de Outono: Acropolis Cup",
+    "series": "Sazonais",
+    "category": "Outono",
+    "aliases": []
   },
   {
     "id": "T10",
-    "name": "TGC Numerado"
+    "name": "F1 Academy",
+    "series": "Novatos",
+    "category": "Geral",
+    "aliases": []
   },
   {
     "id": "T11",
-    "name": "TGC Prototype Challenge"
+    "name": "Copa TGC",
+    "series": "Copa TGC",
+    "category": "Geral",
+    "aliases": []
   },
   {
     "id": "T12",
-    "name": "Torneio de Inverno: Arctic Rally"
+    "name": "TGC 17",
+    "series": "TGC Numerado",
+    "category": "Geral",
+    "aliases": []
   },
   {
     "id": "T13",
-    "name": "La Liga - Série Ouro"
+    "name": "TGC Prototype Challenge",
+    "series": "TGC Cenários",
+    "category": "Cenários",
+    "aliases": []
   },
   {
     "id": "T14",
-    "name": "La Liga - Série Prata"
+    "name": "Torneio de Inverno: Arctic Rally",
+    "series": "Sazonais",
+    "category": "Inverno",
+    "aliases": []
   },
   {
     "id": "T15",
-    "name": "La Liga - Série Bronze"
+    "name": "La Liga - Série Ouro",
+    "series": "La Liga",
+    "category": "Ouro",
+    "aliases": []
   },
   {
     "id": "T16",
-    "name": "Torneio de Primavera: Targa Florio"
+    "name": "La Liga - Série Prata",
+    "series": "La Liga",
+    "category": "Prata",
+    "aliases": []
   },
   {
     "id": "T17",
-    "name": "Champions Cup"
+    "name": "La Liga - Série Bronze",
+    "series": "La Liga",
+    "category": "Bronze",
+    "aliases": []
   },
   {
     "id": "T18",
-    "name": "Asia LeMans Series"
+    "name": "Torneio de Primavera: Targa Florio",
+    "series": "Sazonais",
+    "category": "Primavera",
+    "aliases": []
+  },
+  {
+    "id": "T19",
+    "name": "Champions Cup",
+    "series": "Champions Cup",
+    "category": "Geral",
+    "aliases": []
   }
 ]

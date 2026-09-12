@@ -13,7 +13,7 @@ require_once __DIR__ . '/../config/environment.php';
 class adminAuth {
     
     const SESSION_KEY = 'admin_session_key';
-    const SESSION_TIMEOUT = 3600; // 1 hora
+    const SESSION_TIMEOUT = 86400; // 1 hora
     const SESSION_IP_CHECK = true;
     
     /**

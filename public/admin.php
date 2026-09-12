@@ -114,7 +114,7 @@ $pistas_disponiveis = [
     17 => "17 SCN - Stockholm", 18 => "18 SCN - Copenhagen", 19 => "19 SCN - Helsinki", 20 => "20 SCN - Oslo",
     21 => "21 FRA - Paris", 22 => "22 FRA - Nice", 23 => "23 FRA - Bordeaux", 24 => "24 FRA - Monaco",
     25 => "25 ITA - Pisa", 26 => "26 ITA - Rome", 27 => "27 ITA - Sicily", 28 => "28 ITA - Florence",
-    29 => "29 UK - London", 30 => "30 UK - Sheffield", 31 => "31 UK - Loch Ness", 32 => "32 UK - Stonehenge"
+    29 => "29 UKG - London", 30 => "30 UKG - Sheffield", 31 => "31 UKG - Loch Ness", 32 => "32 UKG - Stonehenge"
 ];
 
 // Helpers Seguros
@@ -826,7 +826,10 @@ if (is_array($pilots)) {
 
                 rows.forEach(row => {
                     const text = row.innerText.toLowerCase();
-                    if (text.includes(filter)) {
+                    const isFinishedHiddenByToggle = document.getElementById('hide_finished_matches')?.checked && row.dataset.status === 'FINALIZADA';
+                    const shouldMatchFilter = text.includes(filter);
+
+                    if (shouldMatchFilter && !isFinishedHiddenByToggle) {
                         row.classList.remove('hidden');
                         blockHasMatch = true;
                     } else {
@@ -841,6 +844,22 @@ if (is_array($pilots)) {
                     block.classList.add('hidden');
                 }
             });
+        }
+
+        function toggleFinishedMatches() {
+            const hideFinished = document.getElementById('hide_finished_matches')?.checked;
+            const rows = document.querySelectorAll('.match-row');
+
+            rows.forEach(row => {
+                const isFinished = row.dataset.status === 'FINALIZADA';
+                if (hideFinished && isFinished) {
+                    row.classList.add('hidden');
+                } else {
+                    row.classList.remove('hidden');
+                }
+            });
+
+            filterMatches();
         }
 
         // Lógica de Seleção de Países/Pistas (Ordenada com Badges)
@@ -1022,16 +1041,8 @@ if (is_array($pilots)) {
             document.getElementById('clone_match_id').value = id;
             document.getElementById('clone_match_title').innerText = "Clonar Partida (Origem: #" + id + ")";
 
-            const phaseSelect = document.getElementById('clone_phase');
-            phaseSelect.value = phase;
-            toggleCloneGroupSelect(phase);
-            setGroupSelectionFromMatch('clone_group_num', groupName, phase);
-
-            // Setar Pilotos
             document.getElementById('clone_p1').value = p1;
             document.getElementById('clone_p2').value = p2;
-
-            // Setar Prazo
             document.getElementById('clone_deadline').value = deadline.split(' ')[0];
 
             document.getElementById('cloneModal').classList.remove('hidden');
@@ -1044,6 +1055,7 @@ if (is_array($pilots)) {
         function toggleCloneGroupSelect(val) {
             const normalizedPhase = normalizePhaseKey(val);
             const container = document.getElementById('clone_group_container');
+            if (!container) return;
             const shouldShow = normalizedPhase === 'F1' || normalizedPhase === 'F7';
             container.classList.toggle('hidden', !shouldShow);
             if (shouldShow) {
@@ -1054,7 +1066,12 @@ if (is_array($pilots)) {
         document.addEventListener('DOMContentLoaded', function() {
             toggleGroupSelect(document.querySelector('select[name="phase"]')?.value || 'F1');
             toggleEditGroupSelect(document.getElementById('edit_phase')?.value || 'F1');
-            toggleCloneGroupSelect(document.getElementById('clone_phase')?.value || 'F1');
+            const hideFinishedCheckbox = document.getElementById('hide_finished_matches');
+            if (hideFinishedCheckbox) {
+                hideFinishedCheckbox.checked = true;
+                hideFinishedCheckbox.addEventListener('change', toggleFinishedMatches);
+            }
+            toggleFinishedMatches();
         });
 
         // Modal de _Logs_ e Backups
@@ -1323,14 +1340,20 @@ if (is_array($pilots)) {
         </form>
 
         <!-- LISTAGEM DE PARTIDAS -->
-        <div class="flex items-center gap-3 mb-2">
-            <h3 class="text-xl font-bold text-gray-800">📋 Partidas Ativas</h3>
-            <span class="cursor-help text-gray-500 hover:text-indigo-600 transition-colors" title="A edição do local da corrida não é permitida. Caso necessário alterar o local, exclua a partida e crie-a novamente.">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-            </span>
-            <span class="bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full"><?= count($matches) ?> total</span>
+        <div class="flex items-center justify-between gap-3 mb-2">
+            <div class="flex items-center gap-3">
+                <h3 class="text-xl font-bold text-gray-800">📋 Partidas Ativas</h3>
+                <span class="cursor-help text-gray-500 hover:text-indigo-600 transition-colors" title="A edição do local da corrida não é permitida. Caso necessário alterar o local, exclua a partida e crie-a novamente.">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </span>
+                <span class="bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full"><?= count($matches) ?> total</span>
+            </div>
+            <label class="flex items-center gap-3 cursor-pointer text-xl font-bold text-gray-800 select-none ml-auto">
+                <input type="checkbox" id="hide_finished_matches" checked class="h-6 w-6 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                <span>Esconder partidas finalizadas</span>
+            </label>
         </div>
 
         <!-- CAMPO DE FILTRO PARTIDAS (NOVO) -->
@@ -1461,7 +1484,7 @@ if (is_array($pilots)) {
                                         $currWinnerId = $m['winnerID'] ?? '';
                                         $currWinnerJs = ($currWinnerId === null || $currWinnerId === '') ? 'null' : $currWinnerId;
                                     ?>
-                                    <tr class="hover:bg-gray-50 transition-colors match-row">
+                                    <tr class="hover:bg-gray-50 transition-colors match-row" data-status="<?= (($m['status'] ?? '') === 'CONCLUIDO' || (($sched['status'] ?? '') === 'PARTIDA_FINALIZADA') ? 'FINALIZADA' : 'ATIVA') ?>">
                                         <td class="px-4 py-3 font-mono text-gray-500">#<?= $m['id'] ?></td>
                                         <td class="px-4 py-3"><?= $grpDisplay ?></td>
                                         <td class="px-4 py-3"><span class="font-medium text-indigo-900"><?= $pA ?></span></td>
@@ -1717,26 +1740,7 @@ if (is_array($pilots)) {
             </div>
             <form method="POST" class="p-6 space-y-4">
                 <input type="hidden" name="clone_match_id" id="clone_match_id">
-                
-                <!-- Fase e Grupo/Rodada-->
 
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Fase</label>
-                    <label for="clone_phase"></label>
-                    <select name="clone_phase" id="clone_phase" onchange="toggleCloneGroupSelect(this.value)" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm focus:ring-green-500 focus:border-green-500">
-                        <?php foreach ($fases as $f): ?><option value="<?= htmlspecialchars((string)($f['id'] ?? '')) ?>"><?= htmlspecialchars((string)($f['name'] ?? '')) ?></option><?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div id="clone_group_container" class="hidden">
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Número do Grupo/Rodada</label>
-                    <label for="clone_group_num"></label>
-                    <select name="clone_group_num" id="clone_group_num" class="block w-full border-gray-300 rounded border py-2 px-3 text-sm">
-                        <?php for($g=1; $g<=30; $g++): ?><option value="<?= $g ?>"><?= $g ?></option><?php endfor; ?>
-                    </select>
-                </div>
-
-                <!-- Pilotos -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-1">Player 1</label>
@@ -1758,7 +1762,6 @@ if (is_array($pilots)) {
                     </div>
                 </div>
 
-                <!-- Prazo -->
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Prazo Final</label>
                     <label for="clone_deadline"></label>
@@ -1766,7 +1769,7 @@ if (is_array($pilots)) {
                 </div>
                 
                 <div class="text-xs text-gray-500 italic mt-2">
-                    * O local da corrida (Países/Pistas) será copiado da partida original.
+                    * Fase, rodada e local da corrida serão mantidos iguais aos da partida original.
                 </div>
 
                 <div class="pt-4 flex justify-end gap-2">
