@@ -439,20 +439,28 @@ switch ($cmd) {
 
         $responseData = [
             'matchID' => $matchID,
-            'state' => 'ERRO',
+            'state' => '',
             'nickname' => $nickname,
-                    'opponentID' => $opponentID,
+            'opponentID' => $opponentID,
             'bookingDate' => 'ERRO',
             'tournament' => $match['tournament'],
         ];
 
-        if ($match['player1ID'] != $currentPilot['id'] && $match['player2ID'] != $currentPilot['id'] && !isAdmin($pilotID)) {
-            respond("❌ Você não participa desta partida.");
+        if ($match['player1ID'] != $currentPilot['id'] && $match['player2ID'] != $currentPilot['id'] ) {
+            $responseData['state'] = 'JOGADOR_PRONTO_SEM_AGENDAMENTO';
+            respond("❌ Você não participa desta partida.", $responseData);
         }
         $sched = getMatchSchedule($matchID);
 
-        //TODO se p1 ou p2 é o rithchie, não permitir play pq é uma partida de pole position, não precisa agendar nem play
-        if (!$sched) respond("❌ Não há agendamentos propostos ou confirmados para a partida #$matchID.\n\nUse /agendar ID para agendar.");
+        if ($match['player1ID'] == 999 || $match['player2ID'] == 999) {
+            $responseData['state'] = 'JOGADOR_PRONTO_SEM_AGENDAMENTO';
+            respond("❌ Esta é uma partida de PolePosition\nNão é necessário comando play.\n\nQuando tiver os tempos envie */polePosition $matchID*.", $responseData);
+        }
+
+        if (!$sched) {
+            $responseData['state'] = 'JOGADOR_PRONTO_SEM_AGENDAMENTO';
+            respond("❌ Não há agendamentos propostos ou confirmados para a partida #$matchID.\n\nUse */agendar $matchID* para agendar.");
+        }
 
         $now = time();
         $dtTimestamp = strtotime($sched['bookingDate']);
@@ -513,12 +521,9 @@ switch ($cmd) {
             respond("❌ Partida não encontrada. \n\nRevise o número com o */partidas*", ['state' => 'ERRO_NAO_ENCONTRADO']);
         }
 
-        // Bloqueio Ritchie / Pole Position
-        //TODO permitir resultado para partidas de pole position, mas não permitir agendamento nem play
-        //TODO checar se o ADMIN já informou o resultado, se sim, não permitir informar novamente
-        if (isComputerMatch($match)) {
-            respond("🚫 *Atenção:* Não é necessário informar resultado para partida de Pole Position (contra o Ritchie / Computador).", ['state' => 'ERRO_PARTIDA_COMPUTADOR']);
-        }
+        //if (isComputerMatch($match)) {
+        //    respond("🚫 *Atenção:* Não é necessário informar resultado para partida de Pole Position (contra o Ritchie / Computador).", ['state' => 'ERRO_PARTIDA_COMPUTADOR']);
+        //}
 
         $p1Id = $match['player1ID'] ?? null;
         $p2Id = $match['player2ID'] ?? null;
@@ -529,8 +534,6 @@ switch ($cmd) {
         $p1Tg = getTelegramIdByPilotId($p1Id);
         $p2Tg = getTelegramIdByPilotId($p2Id);
 
-        //TODO arrumar o CamelCase em todos os campos de nickname, nome, nickname_TGC, nicknameTGC, etc. para manter consistência
-        // Se passar apenas /resultado ID (sem argumento de vencedor/empate/woduplo)
         $winnerInput = isset($parts[2]) ? trim(implode(' ', array_slice($parts, 2))) : ($input['message']['winner'] ?? ($input['message']['winnerId'] ?? null));
 
         if ($winnerInput === null || $winnerInput === '') {
@@ -663,6 +666,7 @@ switch ($cmd) {
         $matchID = intval($parts[1]);
         $matches = getJson(FILE_MATCHES);
         $match = null;
+        unset($m);
         foreach ($matches as $m) {
             if ($m['id'] == $matchID) { $match = $m; break; }
         }
@@ -815,6 +819,7 @@ switch ($cmd) {
         // 1. Atualizar schedules.bookingsData
         $results = getJson(FILE_SCHEDULES);
         $existingIndex = -1;
+        unset($s);
         foreach ($results as $idx => $s) {
             if ($s['matchID'] == $matchID) { $existingIndex = $idx; break; }
         }
@@ -964,7 +969,7 @@ switch ($cmd) {
         }
 
         //De baixo pra cima, pega o último resultado da partida.
-        $results = getJson(FILE_RESULTS_T6);
+        $results = getJson(FILE_RESULTS_T8);
         $result = null;
         for ($i = count($results) - 1; $i >= 0; $i--) {
             if ($results[$i]['matchID'] == $matchID) {
@@ -1032,7 +1037,7 @@ switch ($cmd) {
         $videoLink = $message['videoLink'] ;
         $pilotID = $message['from']['pilotID'] ;
         $roundID = $match['groupName'];
-        $results = getJson(FILE_RESULTS_T6);
+        $results = getJson(FILE_RESULTS_T8);
 
         //Atualização apenas do link de vídeo, sem alterar tempos anteriores
         if ($timesRecebidos == null) {
@@ -1042,7 +1047,7 @@ switch ($cmd) {
                     break;
                 }
             }
-            saveJson(FILE_RESULTS_T6, $results);
+            saveJson(FILE_RESULTS_T8, $results);
 
             $allMatches = getJson(FILE_MATCHES);
             foreach ($allMatches as &$m) {
@@ -1115,7 +1120,7 @@ switch ($cmd) {
 
         // Adiciona novo resultado sem alterar resultados anteriores
         $results[] = $novoResultado;
-        saveJson(FILE_RESULTS_T6, $results);
+        saveJson(FILE_RESULTS_T8, $results);
 
         // Atualizar matches
         $responseData = ['state' => 'ERRO_DADOS'];
@@ -1162,7 +1167,7 @@ switch ($cmd) {
         $concludedCount = 0;
 
         foreach ($matches as $m) {
-            if (($m['tournamentId'] ?? '') === 'T6' && trim($m['groupName'] ?? '') === $targetRound) {
+            if (($m['tournamentId'] ?? '') === 'T8' && trim($m['groupName'] ?? '') === $targetRound) {
                 $roundMatches[] = $m;
                 if (($m['status'] ?? '') === 'CONCLUIDO') {
                     $concludedCount++;
@@ -1184,7 +1189,7 @@ switch ($cmd) {
             respond($msg, ['state' => 'ERRO_STATUS_INCONSISTENTE']);
         }
 
-        $standings = getJson(FILE_STANDINGS_T6);
+        $standings = getJson(FILE_STANDINGS_T8);
 
         // Regra de Trava Final: Todas concluídas e usuário normal -> Retorna o que já tá salvo no standings sem reordenar
         if ($concludedCount === $totalRoundMatches && !$isAdm) {
@@ -1221,8 +1226,8 @@ switch ($cmd) {
             }
         }
 
-        $allResults = getJson(FILE_RESULTS_T6);
-        $scoringData = getJson(FILE_SCORING_T6);
+        $allResults = getJson(FILE_RESULTS_T8);
+        $scoringData = getJson(FILE_SCORING_T8);
         $pointsMap = $scoringData['pointsByPosition'] ?? [];
 
         $roundPilots = [];
@@ -1323,7 +1328,7 @@ switch ($cmd) {
             $standings[] = $finalStandingsForJson;
         }
 
-        saveJson(FILE_STANDINGS_T6, $standings);
+        saveJson(FILE_STANDINGS_T8, $standings);
 
         respond($msg, [
             'state' => 'CLASSIFICACAO_RODADA',
@@ -1333,7 +1338,7 @@ switch ($cmd) {
 
     case '/polefinalstandings':
     // 1. Carrega apenas o standings.json, tornando independente do matches.json
-    $standings = getJson(FILE_STANDINGS_T6);
+    $standings = getJson(FILE_STANDINGS_T8);
 
     if (empty($standings)) {
         respond("❌ Nenhuma rodada foi registrada até o momento no torneio.", ['state' => 'ERRO_STANDINGS_VAZIO']);
