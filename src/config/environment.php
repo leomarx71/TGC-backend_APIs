@@ -154,6 +154,9 @@ if (!defined('FILE_STANDINGS_T8')) {
     define('FILE_STANDINGS_T8', TOURNAMENTS_DATA_DIR . '/T8_TGC_Pole_Position/standings.json');
 }
 
+if (!defined('FILE_TOURNAMENTS_DATA_T8')) {
+    define('FILE_TOURNAMENTS_DATA_T8', TOURNAMENTS_DATA_DIR . '/T8_TGC_Pole_Position/data.json');
+}
 
 // ============================================================
 // CONFIGURAR TIMEZONE
