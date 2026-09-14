@@ -1141,9 +1141,9 @@ switch ($cmd) {
 
         $msg = "✅ *Tempos enviados com sucesso!*\n";
         $msg .= "Aguarde a validação do Admin.";
-        $msg .= "\n\nPara ver sua classificação nessa rodada, use o comando:";
-        $msg .= "\n*/poleRounds $matchID*";
-        $msg .= "\n\nPara ver sua classificação geral no torneio, use o comando:";
+        $msg .= "\n\nMandou bem!\nPara ver sua classificação nessa\nrodada, use o comando:";
+        $msg .= "\n*/poleRounds $roundID*";
+        $msg .= "\n\nPara ver sua classificação geral no\ntorneio, use o comando:";
         $msg .= "\n*/poleFinalStandings*";
         $msg .= "\n\n👏🏽 Obrigado por participar! 🏁 ";
 
@@ -1304,7 +1304,7 @@ switch ($cmd) {
             $CurrentsRoundResults[] = $p;
         }
 
-        $msg = "\n\nPara ver a sua classificação geral no torneio, use o comando:";
+        $msg = "\n\nPara ver a sua classificação geral no torneio,\nuse o comando:";
         $msg .= "\n*/poleFinalStandings*";
 
         // Preparação para atualizar o objeto no db de forma limpa (sem strings extras de display)
@@ -1456,7 +1456,7 @@ switch ($cmd) {
         $rankIndex++;
     }
 
-    $msg = " \n🏁 *Parabéns você chegou na linha de chegada!* 🏁👏🏽 *Obrigado por participar!* 👏🏽";
+    $msg = " \n🏁 *Parabéns vc chegou na linha de chegada!* 🏁\n👏🏽 *Obrigado por participar!* 👏🏽";
 
     $tournamentInfo = getJson( FILE_TOURNAMENTS_DATA_T8);
     respond($msg, [
