@@ -1190,6 +1190,7 @@ switch ($cmd) {
         }
 
         $standings = getJson(FILE_STANDINGS_T8);
+        $tournamentInfo = getJson( FILE_TOURNAMENTS_DATA_T8);
 
         // Regra de Trava Final: Todas concluídas e usuário normal -> Retorna o que já tá salvo no standings sem reordenar
         if ($concludedCount === $totalRoundMatches && !$isAdm) {
@@ -1218,7 +1219,7 @@ switch ($cmd) {
 
                 respond($msg, [
                     'state' => 'CLASSIFICACAO_RODADA_FINALIZADA',
-                    'date' => date('c'),
+                    'tournamentName' => $tournamentInfo['name'],
                     'results' => $existingRound['results']
                 ]);
             } else {
@@ -1332,7 +1333,7 @@ switch ($cmd) {
 
         respond($msg, [
             'state' => 'CLASSIFICACAO_RODADA',
-            'date' => date('c'),
+            'tournamentName' => $tournamentInfo['name'],
             'results' => $CurrentsRoundResults
         ]);
 
@@ -1457,9 +1458,10 @@ switch ($cmd) {
 
     $msg = " \n🏁 *Parabéns você chegou na linha de chegada!* 🏁👏🏽 *Obrigado por participar!* 👏🏽";
 
+    $tournamentInfo = getJson( FILE_TOURNAMENTS_DATA_T8);
     respond($msg, [
         'state' => 'CLASSIFICACAO_GERAL_FINAL',
-        'date' => date('c'),
+        'tournamentName' => $tournamentInfo['name'],
         'results' => $finalStandings
     ]);
 
