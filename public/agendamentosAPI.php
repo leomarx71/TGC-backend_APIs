@@ -1139,10 +1139,12 @@ switch ($cmd) {
         }
         saveJson(FILE_MATCHES, $allMatches);
 
+
+        $numeroRodada = preg_replace('/\D+/', '', $roundID);
         $msg = "✅ *Tempos enviados com sucesso!*\n";
         $msg .= "Aguarde a validação do Admin.";
         $msg .= "\n\nMandou bem!\nPara ver sua classificação nessa\nrodada, use o comando:";
-        $msg .= "\n*/poleRounds $roundID*";
+        $msg .= "\n*/poleRounds $numeroRodada*";
         $msg .= "\n\nPara ver sua classificação geral no\ntorneio, use o comando:";
         $msg .= "\n*/poleFinalStandings*";
         $msg .= "\n\n👏🏽 Obrigado por participar! 🏁 ";
