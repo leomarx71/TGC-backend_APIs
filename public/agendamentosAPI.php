@@ -986,6 +986,7 @@ switch ($cmd) {
             'times' => is_array($result['times']) ? array_map(function($time) {
                 return formatMsToTime((int)$time);
             }, $result['times']) : [],
+            'carColor' => is_array($result['carColor']) ? $result['carColor'] : [], // ← NOVO
             'link' => $result['proof']['url']
         ];
 
@@ -1033,9 +1034,10 @@ switch ($cmd) {
         }
 
         $message = $input['message'];
-        $timesRecebidos = $message['times'] ;
-        $videoLink = $message['videoLink'] ;
-        $pilotID = $message['from']['pilotID'] ;
+        $timesRecebidos = $message['times'];
+        $videoLink = $message['videoLink'];
+        $carColorRecebido = $message['carColor'];
+        $pilotID = $message['from']['pilotID'];
         $roundID = $match['groupName'];
         $results = getJson(FILE_RESULTS_T8);
 
@@ -1063,11 +1065,13 @@ switch ($cmd) {
         }
 
         $times = [];
+        $carColor = [];
         $totalTime = 0;
 
         foreach ($timesRecebidos as $item) {
             $pista = trim($item['pista'] );
             $tempo = trim($item['tempo'] );
+            $cor = $item['carColor'];
 
             if (!preg_match('/^(\d+):([0-5]\d):(\d{3})$/', $tempo, $tempoMatch)) {
                 respond( "❌ Erro: o tempo {$tempo} possui formato inválido.", ['state' => 'ERRO_DADOS'] );
@@ -1087,8 +1091,10 @@ switch ($cmd) {
             }
 
             $trackID = intval($pistaMatch[1]);
-
             $times[(string)$trackID] = $tempoMs;
+            if ($cor !== null) {
+                $carColor[(string)$trackID] = intval($cor);
+            }
             $totalTime += $tempoMs;
         }
 
@@ -1107,6 +1113,7 @@ switch ($cmd) {
             'pilotID' => $pilotID,
             'totalTime' => $totalTime,
             'times' => $times,
+            'carColor' => $carColor,
             'proof' => [
                 'url' => $videoLink
             ],
@@ -1118,7 +1125,6 @@ switch ($cmd) {
             ]
         ];
 
-        // Adiciona novo resultado sem alterar resultados anteriores
         $results[] = $novoResultado;
         saveJson(FILE_RESULTS_T8, $results);
 
@@ -1260,6 +1266,7 @@ switch ($cmd) {
                 'resultID' => $latestResultForMatch ? $latestResultForMatch['id'] : null,
                 'totalTime' => $latestResultForMatch ? (int)$latestResultForMatch['totalTime'] : 0,
                 'totalTimeFormatted' => $latestResultForMatch ? formatMsToTime((int)$latestResultForMatch['totalTime']) : "0:00:000",
+                'carColor' => $latestResultForMatch && isset($latestResultForMatch['carColor']) ? $latestResultForMatch['carColor'] : [],
                 'points' => 0
             ];
         }
@@ -1374,7 +1381,8 @@ switch ($cmd) {
                     'totalPoints' => 0,
                     'totalTime' => 0,
                     'validRounds' => 0,
-                    'positionsCount' => [] // Novo array para registrar as posições de cada rodada
+                    'positionsCount' => [],
+                    'carColors' => [] // ← NOVO: armazena carColor de todas as rodadas
                 ];
             }
 
@@ -1391,6 +1399,14 @@ switch ($cmd) {
             $pos = (int)($r['rank'] ?? 0);
             if ($pos > 0) {
                 $aggregated[$pilotIdentifier]['positionsCount'][$pos] = ($aggregated[$pilotIdentifier]['positionsCount'][$pos] ?? 0) + 1;
+            }
+
+            // ← NOVO: Coleta carColor se existir neste resultado
+            if (isset($r['carColor']) && is_array($r['carColor'])) {
+                $aggregated[$pilotIdentifier]['carColors'] = array_merge(
+                    $aggregated[$pilotIdentifier]['carColors'],
+                    $r['carColor']
+                );
             }
         }
     }
