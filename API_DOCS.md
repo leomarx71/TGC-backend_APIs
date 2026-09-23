@@ -274,7 +274,7 @@ Fluxo:
 Fluxo:
 - Piloto envia os tempos da rodada
 - API valida o formato de cada tempo (`MM:SS:MMM`)
-- Salva o resultado em `FILE_RESULTS_T8`
+- Salva o resultado em `FILE_RESULTS_T08`
 - Atualiza o status da partida para `CONFIRMADO_PODE_EDITAR` ou `CONFIRMADO_SEM_VIDEO`
 
 ### 3.3. `/polerounds X`

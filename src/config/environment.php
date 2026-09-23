@@ -142,20 +142,20 @@ if (!defined('FILE_ALLTRACKS')) {
     define('FILE_ALLTRACKS', GENERAL_DATA_DIR . '/allTracks.json');
 }
 
-if (!defined('FILE_RESULTS_T8')) {
-    define('FILE_RESULTS_T8', TOURNAMENTS_DATA_DIR . '/T8_TGC_Pole_Position/results.json');
+if (!defined('FILE_RESULTS_T08')) {
+    define('FILE_RESULTS_T08', TOURNAMENTS_DATA_DIR . '/T08/results.json');
 }
 
-if (!defined('FILE_SCORING_T8')) {
-    define('FILE_SCORING_T8', TOURNAMENTS_DATA_DIR . '/T8_TGC_Pole_Position/scoring.json');
+if (!defined('FILE_SCORING_T08')) {
+    define('FILE_SCORING_T08', TOURNAMENTS_DATA_DIR . '/T08/scoring.json');
 }
 
-if (!defined('FILE_STANDINGS_T8')) {
-    define('FILE_STANDINGS_T8', TOURNAMENTS_DATA_DIR . '/T8_TGC_Pole_Position/standings.json');
+if (!defined('FILE_STANDINGS_T08')) {
+    define('FILE_STANDINGS_T08', TOURNAMENTS_DATA_DIR . '/T08/standings.json');
 }
 
-if (!defined('FILE_TOURNAMENTS_DATA_T8')) {
-    define('FILE_TOURNAMENTS_DATA_T8', TOURNAMENTS_DATA_DIR . '/T8_TGC_Pole_Position/data.json');
+if (!defined('FILE_TOURNAMENTS_DATA_T08')) {
+    define('FILE_TOURNAMENTS_DATA_T08', TOURNAMENTS_DATA_DIR . '/T08/data.json');
 }
 
 // ============================================================

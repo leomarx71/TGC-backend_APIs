@@ -263,7 +263,7 @@ switch ($cmd) {
         if ($pilotID == 351935525827) {
             respond(
                 "❌ Só consigo processar uma mensagem por vez! \n\nReenvie novamente o comando...\n\n" .
-                "Link do Bot TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
+                "Link do Bot TopGearTGCBot https://chat.whatsapp.com/DyN7gS54d2tDKx8TcLjGrL e execute o comando por lá.",
                 []
             );
         }
@@ -286,7 +286,7 @@ switch ($cmd) {
         if ($pilotID == 351935525827) {
             respond(
                 "❌ Só consigo processar uma mensagem por vez! \n\nReenvie novamente o comando...\n\n" .
-                "Link do Bot TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
+                "Link do Bot TopGearTGCBot https://chat.whatsapp.com/DyN7gS54d2tDKx8TcLjGrL e execute o comando por lá.",
                 []
             );
         }
@@ -318,7 +318,7 @@ switch ($cmd) {
         if ($pilotID == 351935525827) {
             respond(
                 "❌ Só consigo processar uma mensagem por vez! \n\nReenvie novamente o comando...\n\n" .
-                "Link do Bot TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
+                "Link do Bot TopGearTGCBot https://chat.whatsapp.com/DyN7gS54d2tDKx8TcLjGrL e execute o comando por lá.",
                 []
             );
         }
@@ -360,7 +360,7 @@ switch ($cmd) {
             $titulo = "{$m['tournament']} - {$m['phase']}" . (($m['groupName'] !== $m['phase'] && $m['phase'] === 'Fase de Grupos') ? " - {$m['groupName']}" : "");
 
             $msg .= "🆔 *Partida #{$m['id']}*\n👤 {$p1Name} vs {$p2Name} 👤\n🏆 {$titulo}\n⏳ Prazo Final: {$prazo}\n📌 Status: {$status}\n🛣 {$local}\n\n";
-            $msg .= "Use */agendar ID* ou */play ID* para gerenciar.\n\n";
+            $msg .= "Use */agendar {$m['id']}* ou */play {$m['id']}* para gerenciar.\n\n";
 
             if ($key !== $lastKey) {
                 $msg .= "\n[NEXT]\n";
@@ -420,7 +420,7 @@ switch ($cmd) {
         if ($pilotID == 351935525827) {
             respond(
                 "❌ Só consigo processar uma mensagem por vez! \n\nReenvie novamente o comando...\n\n" .
-                "Link do Bot TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
+                "Link do Bot TopGearTGCBot https://chat.whatsapp.com/DyN7gS54d2tDKx8TcLjGrL e execute o comando por lá.",
                 []
             );
         }
@@ -675,7 +675,7 @@ switch ($cmd) {
         if ($pilotID == 351935525827) {
             respond(
                 "❌ Só consigo processar uma mensagem por vez! \n\nReenvie novamente o comando...\n\n" .
-                "Link do TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.",
+                "Link do TopGearTGCBot https://chat.whatsapp.com/DyN7gS54d2tDKx8TcLjGrL e execute o comando por lá.",
                 []
             );
         }
@@ -947,7 +947,7 @@ switch ($cmd) {
         if ($pilotID == 351935525827) {
             $responseData = ['state' => 'ERRO_NAO_PERTENCE'];
             respond( "❌ Só consigo processar uma mensagem por vez! \n\nReenvie novamente o comando...\n\n" .
-                "Link do TopGearTGCBot https://chat.whatsapp.com/F4NcJEt40Kb6rcyq6tn6MG e execute o comando por lá.", $responseData );
+                "Link do TopGearTGCBot https://chat.whatsapp.com/DyN7gS54d2tDKx8TcLjGrL e execute o comando por lá.", $responseData );
         }
 
         if (!$match) {
@@ -969,7 +969,7 @@ switch ($cmd) {
         }
 
         //De baixo pra cima, pega o último resultado da partida.
-        $results = getJson(FILE_RESULTS_T8);
+        $results = getJson(FILE_RESULTS_T08);
         $result = null;
         for ($i = count($results) - 1; $i >= 0; $i--) {
             if ($results[$i]['matchID'] == $matchID) {
@@ -1039,7 +1039,7 @@ switch ($cmd) {
         $carColorRecebido = $message['carColor'];
         $pilotID = $message['from']['pilotID'];
         $roundID = $match['groupName'];
-        $results = getJson(FILE_RESULTS_T8);
+        $results = getJson(FILE_RESULTS_T08);
 
         //Atualização apenas do link de vídeo, sem alterar tempos anteriores
         if ($timesRecebidos == null) {
@@ -1049,7 +1049,7 @@ switch ($cmd) {
                     break;
                 }
             }
-            saveJson(FILE_RESULTS_T8, $results);
+            saveJson(FILE_RESULTS_T08, $results);
 
             $allMatches = getJson(FILE_MATCHES);
             foreach ($allMatches as &$m) {
@@ -1126,7 +1126,7 @@ switch ($cmd) {
         ];
 
         $results[] = $novoResultado;
-        saveJson(FILE_RESULTS_T8, $results);
+        saveJson(FILE_RESULTS_T08, $results);
 
         // Atualizar matches
         $responseData = ['state' => 'ERRO_DADOS'];
@@ -1149,9 +1149,9 @@ switch ($cmd) {
         $numeroRodada = preg_replace('/\D+/', '', $roundID);
         $msg = "✅ *Tempos enviados com sucesso!*\n";
         $msg .= "Aguarde a validação do Admin.";
-        $msg .= "\n\nMandou bem!\nPara ver sua classificação nessa\nrodada, use o comando:";
+        $msg .= "\n\nMandou bem!\nPara ver sua classificação nessa\nrodada, use o comando lá no Bot:";
         $msg .= "\n*/poleRounds $numeroRodada*";
-        $msg .= "\n\nPara ver sua classificação geral no\ntorneio, use o comando:";
+        $msg .= "\n\nPara ver sua classificação geral no\ntorneio, use o comando lá no Bot:";
         $msg .= "\n*/poleFinalStandings*";
         $msg .= "\n\n👏🏽 Obrigado por participar! 🏁 ";
 
@@ -1175,7 +1175,7 @@ switch ($cmd) {
         $concludedCount = 0;
 
         foreach ($matches as $m) {
-            if (($m['tournamentId'] ?? '') === 'T8' && trim($m['groupName'] ?? '') === $targetRound) {
+            if (($m['tournamentId'] ?? '') === 'T08' && trim($m['groupName'] ?? '') === $targetRound) {
                 $roundMatches[] = $m;
                 if (($m['status'] ?? '') === 'CONCLUIDO') {
                     $concludedCount++;
@@ -1197,8 +1197,8 @@ switch ($cmd) {
             respond($msg, ['state' => 'ERRO_STATUS_INCONSISTENTE']);
         }
 
-        $standings = getJson(FILE_STANDINGS_T8);
-        $tournamentInfo = getJson( FILE_TOURNAMENTS_DATA_T8);
+        $standings = getJson(FILE_STANDINGS_T08);
+        $tournamentInfo = getJson( FILE_TOURNAMENTS_DATA_T08);
 
         // Regra de Trava Final: Todas concluídas e usuário normal -> Retorna o que já tá salvo no standings sem reordenar
         if ($concludedCount === $totalRoundMatches && !$isAdm) {
@@ -1235,8 +1235,8 @@ switch ($cmd) {
             }
         }
 
-        $allResults = getJson(FILE_RESULTS_T8);
-        $scoringData = getJson(FILE_SCORING_T8);
+        $allResults = getJson(FILE_RESULTS_T08);
+        $scoringData = getJson(FILE_SCORING_T08);
         $pointsMap = $scoringData['pointsByPosition'] ?? [];
 
         $roundPilots = [];
@@ -1313,7 +1313,7 @@ switch ($cmd) {
             $CurrentsRoundResults[] = $p;
         }
 
-        $msg = "\n\nPara ver a sua classificação geral no torneio,\nuse o comando:";
+        $msg = "\n\nPara ver a sua classificação geral no torneio,\nuse o comando lá no Bot:";
         $msg .= "\n*/poleFinalStandings*";
 
         // Preparação para atualizar o objeto no db de forma limpa (sem strings extras de display)
@@ -1338,7 +1338,7 @@ switch ($cmd) {
             $standings[] = $finalStandingsForJson;
         }
 
-        saveJson(FILE_STANDINGS_T8, $standings);
+        saveJson(FILE_STANDINGS_T08, $standings);
 
         respond($msg, [
             'state' => 'CLASSIFICACAO_RODADA',
@@ -1348,7 +1348,7 @@ switch ($cmd) {
 
     case '/polefinalstandings':
     // 1. Carrega apenas o standings.json, tornando independente do matches.json
-    $standings = getJson(FILE_STANDINGS_T8);
+    $standings = getJson(FILE_STANDINGS_T08);
 
     if (empty($standings)) {
         respond("❌ Nenhuma rodada foi registrada até o momento no torneio.", ['state' => 'ERRO_STANDINGS_VAZIO']);
@@ -1476,7 +1476,7 @@ switch ($cmd) {
 
     $msg = " \n🏁 *Parabéns vc chegou na linha de chegada!* 🏁\n👏🏽 *Obrigado por participar!* 👏🏽";
 
-    $tournamentInfo = getJson( FILE_TOURNAMENTS_DATA_T8);
+    $tournamentInfo = getJson( FILE_TOURNAMENTS_DATA_T08);
     respond($msg, [
         'state' => 'CLASSIFICACAO_GERAL_FINAL',
         'tournamentName' => $tournamentInfo['name'],

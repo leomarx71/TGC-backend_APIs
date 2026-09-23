@@ -7,14 +7,14 @@
     "aliases": []
   },
   {
-    "id": "T1",
+    "id": "T01",
     "name": "Torneio de Verão: Dakar Series",
     "series": "Sazonais",
     "category": "Verão",
     "aliases": []
   },
   {
-    "id": "T2",
+    "id": "T02",
     "name": "American LeMans - Diamond Series",
     "series": "Pontos Corridos",
     "category": "Diamond",
@@ -23,7 +23,7 @@
     ]
   },
   {
-    "id": "T3",
+    "id": "T03",
     "name": "American LeMans - Rubi Series",
     "series": "Pontos Corridos",
     "category": "Rubi",
@@ -32,42 +32,42 @@
     ]
   },
   {
-    "id": "T4",
+    "id": "T04",
     "name": "American LeMans - Safira Series",
     "series": "Pontos Corridos",
     "category": "Safira",
     "aliases": []
   },
   {
-    "id": "T5",
+    "id": "T05",
     "name": "La Liga - Série Ouro",
     "series": "La Liga",
     "category": "Ouro",
     "aliases": []
   },
   {
-    "id": "T6",
+    "id": "T06",
     "name": "La Liga - Série Prata",
     "series": "La Liga",
     "category": "Prata",
     "aliases": []
   },
   {
-    "id": "T7",
+    "id": "T07",
     "name": "La Liga - Série Bronze",
     "series": "La Liga",
     "category": "Bronze",
     "aliases": []
   },
   {
-    "id": "T8",
+    "id": "T08",
     "name": "TGC Pole Position",
     "series": "Time Trial",
     "category": "Time Attack",
     "aliases": []
   },
   {
-    "id": "T9",
+    "id": "T09",
     "name": "Torneio de Outono: Acropolis Cup",
     "series": "Sazonais",
     "category": "Outono",
@@ -110,21 +110,21 @@
   },
   {
     "id": "T15",
-    "name": "La Liga - Série Ouro",
+    "name": "La Liga XVI - 2° Estación - Série Ouro",
     "series": "La Liga",
     "category": "Ouro",
     "aliases": []
   },
   {
     "id": "T16",
-    "name": "La Liga - Série Prata",
+    "name": "La Liga XVI - 2° Estación - Série Prata",
     "series": "La Liga",
     "category": "Prata",
     "aliases": []
   },
   {
     "id": "T17",
-    "name": "La Liga - Série Bronze",
+    "name": "La Liga XVI - 2° Estación - Série Bronze",
     "series": "La Liga",
     "category": "Bronze",
     "aliases": []
