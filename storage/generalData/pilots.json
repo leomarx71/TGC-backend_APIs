@@ -2,8 +2,8 @@
     {
         "id": 1,
         "phoneNumberID": 5511999998888,
-        "name": "1Leonardo Marques de Andrade",
-        "nicknameTGC": "LeomarxGames",
+        "name": "1Teste",
+        "nicknameTGC": "Admin",
         "active": 1,
         "createdAt": "2026-01-13 23:30:58"
     },
@@ -22,15 +22,7 @@
         "nicknameTGC": "Piloto Bônus",
         "active": 1,
         "createdAt": "1992-01-01 00:00:01"
-    },
-    {
-        "id": 4,
-        "phoneNumberID": 5511999998888,
-        "name": "Gisele S M Andrade",
-        "nicknameTGC": "Agendamento Teste",
-        "active": 1,
-        "createdAt": "2026-01-13 23:30:58"
-    },
+    }
     {
         "id": 999,
         "phoneNumberID": null,
@@ -38,13 +30,5 @@
         "nicknameTGC": "Ritchie (Computer)",
         "active": 1,
         "createdAt": "1992-01-01 00:00:01"
-    },
-    {
-        "id": 1000,
-        "phoneNumberID": 5511999998888,
-        "name": "Jhonny Mota Top Gear Games",
-        "nicknameTGC": "Jhonny",
-        "active": 1,
-        "createdAt": "2026-01-17 01:00:11"
     }
 ]
