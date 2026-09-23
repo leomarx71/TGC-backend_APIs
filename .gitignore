@@ -4,15 +4,21 @@
 # ============================================================
 
 # Variáveis de ambiente (IMPORTANTE!)
+/env
 .env
 .env.local
 .env.*.local
 .env.backup
 
-# Arquivos de dados e logs (sensível)
+# Arquivos de dados (sensível)
+/storage/logs
+/storage/backups
+/storage/tournamentsData
+pilots.json
 
 # Logs (nunca fazer commit)
 *.log
+
 
 # IDE e Editor
 .vscode/
@@ -26,4 +32,3 @@ Thumbs.db
 # Backup e temp
 *.bak
 *.tmp
-*~
