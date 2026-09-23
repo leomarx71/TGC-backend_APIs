@@ -10,10 +10,10 @@
 .env.backup
 
 # Arquivos de dados (sensível)
-storage/logs
-storage/backups
-storage/tournamentsData/*
-storage/generalData/pilots.json
+/storage/logs/
+/storage/backups/
+/storage/tournamentsData/
+/storage/generalData/pilots.json
 
 # Logs (nunca fazer commit)
 *.log
@@ -31,3 +31,4 @@ Thumbs.db
 # Backup e temp
 *.bak
 *.tmp
+
