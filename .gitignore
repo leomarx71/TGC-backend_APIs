@@ -12,7 +12,7 @@
 # Arquivos de dados (sensível)
 storage/logs
 storage/backups
-storage/tournamentsData
+storage/tournamentsData/*
 storage/generalData/pilots.json
 
 # Logs (nunca fazer commit)
