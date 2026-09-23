@@ -357,7 +357,7 @@ Os estados abaixo são os mais importantes para o frontend decidir a próxima te
 ## 4. Observações finais
 
 - O webhook do agora é pelo WhatsApp e ele é o frontEnd funcionando para integração com o BOT, mas a lógica do produto moderno usa `public/agendamentosAPI.php` como contrato principal.
-- `public/admin.php` é uma interface administrativa local e não faz parte da API pública consumida pelo front-end.
+- `public/admin.php` é uma interface administrativa local e não faz parte da API pública consumida pelo front-end
 
 ### Resumo do fluxo
 

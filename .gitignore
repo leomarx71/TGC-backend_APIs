@@ -4,7 +4,6 @@
 # ============================================================
 
 # Variáveis de ambiente (IMPORTANTE!)
-/env
 .env
 .env.local
 .env.*.local

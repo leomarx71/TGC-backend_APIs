@@ -133,7 +133,6 @@ if (!defined('FILE_LOG_BOT')) {
     define('FILE_LOG_BOT', LOG_DIR . '/botMain.log');
 }
 
-
 // ============================================================
 // DEFINIR CONSTANTES DOS TORNEIOS
 // ============================================================
