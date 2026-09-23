@@ -1,10 +1,10 @@
 {
-  "tournamentID": "T0",
-  "name": "ADM - Bot WhatsApp 🤖 🏁",
+  "tournamentID": "T08",
+  "name": "TGC Pole Position 2026",
   "subtitle": "World Fastest Drivers' Championship",
   "formatType": "time-trial",
   "scoreType": "leaderboard",
   "totalRounds": 12,
   "tracksPerRound": 8,
-  "status": "finished"
+  "status": "running"
 }

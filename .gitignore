@@ -14,7 +14,7 @@
 storage/logs
 storage/backups
 storage/tournamentsData
-*.pilots.json
+*pilots.json
 
 # Logs (nunca fazer commit)
 *.log
